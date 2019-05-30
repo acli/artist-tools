@@ -1,0 +1,153 @@
+#!/usr/bin/perl
+# vi: set sw=3 ai sm :
+
+# A short script to output the collation sequence for a PDF file
+# for reassembly in book form
+
+use strict;
+use integer;
+
+use Getopt::Long;
+use POSIX;
+
+use vars qw( $sigsize $global_npages );
+use vars qw( $ignore_cover );
+use vars qw( $qpdf );
+use vars qw( $verbose $debug $dry_run );
+
+sub execute_command (@) {
+   my @cmdline = @_;
+   printf STDERR "%s: Executing: %s\n", $0, join(' ', map { /\s/? "'$_'": $_ } @cmdline);
+   my $h = fork;
+   die "$0: $cmdline[0]: fork: $!\n" unless defined $h;
+   if ($h) {
+      waitpid $h, 0;
+   } else {
+      exec { $cmdline[0] } @cmdline;
+      die "$0: $cmdline[0]: exec: $!\n";
+   }
+}
+
+sub get_number_of_pages ($) {
+   my ($filename) = @_;
+   my $it;
+   my @cmdline = ('pdfinfo', $filename);
+   local(*INPUT);
+   my $h = open(INPUT, '-|');
+   die "$0: $filename: fork: $!\n" unless defined $h;
+   if ($h) {
+      for (;;) {
+	 my $s = scalar <INPUT>;
+      last unless defined $s;
+	 $it = $1 + 0 if $s =~ /^Pages:\s+(\d+)/;
+      }
+      close INPUT;
+   } else {
+      exec { $cmdline[0] } @cmdline;
+      die "$0: $filename: exec: $!\n";
+   }
+   return $it;
+}
+
+sub gen_collation (;$) {
+   my ($filename) = @_;
+   my($ignore_front, $ignore_back) = (2, 2) if $ignore_cover;
+   my $npages;
+   my @cmdline;
+
+   if (defined $filename) {
+      $npages = get_number_of_pages $filename;
+      die "$0: $filename: Cannot determine number of pages\n" unless defined $npages;
+   } else {
+      $npages = $global_npages;
+      die "$0: $filename: Number of pages must be defined\n" unless defined $npages;
+   }
+   $npages -= $ignore_front + $ignore_back;
+
+   if (($npages/$sigsize) * $sigsize != $npages) {
+      no integer;
+      my $corrected_npages = POSIX::ceil($npages/$sigsize)*$sigsize;
+      die "$0: $filename: $npages not a multiple of $sigsize\n" if defined $filename;
+      print STDERR "$0: Warning: $npages not a multiple of $sigsize, rounded up to $corrected_npages\n";
+      $npages = $corrected_npages;
+   }
+
+   for (my($i, $sig, $sheet, $spread, $first, $prev_sig, $prev_sheet) = (0, 1, 1, 1, 1); $i < $npages; $i += $sigsize, $sig += 1, $first = 0) {
+      for (my($p, $q) = ($i + 1, $i + $sigsize);;) {
+	 my $odd = ($p%2) == 1;
+	 my $sig_changed = !defined $prev_sig || ($prev_sig != $sig);
+	 my $sheet_changed = !defined $prev_sheet || ($prev_sheet != $sheet);
+	 $sheet = 1 if $sig_changed;
+	 printf "\n" if $sig_changed;
+	 printf "%-12s\t", sprintf "(spread %d)", $spread;
+	 if ($sigsize != $npages) {
+	    printf "SIG %d\t", $sig;
+	 }
+	 printf "sp.%d\t", $sheet;
+	 if ($odd) {
+	    printf "FRONT:\tACTUAL\t%d\t%d\tPDF\t%d\t%d", $q, $p, $q + $ignore_front, $p + $ignore_front;
+	    push @cmdline, ($q + $ignore_front, $p + $ignore_front);
+	 } else {
+	    printf "BACK:\tACTUAL\t%d\t%d\tPDF\t%d\t%d", $p, $q, $p + $ignore_front, $q + $ignore_front;
+	    push @cmdline, ($p + $ignore_front, $q + $ignore_front);
+	 }
+	 printf "\t(spread %d)\n", $spread; # repeat info for an easier read
+	 $prev_sig = $sig;
+	 $prev_sheet = $sheet;
+	 $sheet += 1;
+	 $spread += 1;
+      last if $p + 1 == $q;
+	 $p += 1;
+	 $q -= 1;
+      }
+   }
+
+   if ($qpdf && $filename) {
+      my $output_filename = "$1,collated\L$2" if $filename =~ /^(.*)(\.pdf)$/i;
+      @cmdline = ('qpdf', $filename, '--pages', $filename, join(',', @cmdline), '--', $output_filename);
+      execute_command @cmdline;
+   }
+}
+
+sub usage (;$) {
+   my($st) = @_;
+   my $h = $st? *STDERR: *STDOUT;
+   print $h <<EOF;
+Usage: $0 [OPTIONS...] [FILE]
+
+   -s, --signature-size=PAGES    calculate using a signature size of PAGES
+   -n, --number-of-pages=PAGES   calculate for specified number of PAGES
+   -v, --verbose                 explain what's being done
+       --ignore-cover            subtract 4 from number of pages
+       --qpdf                    use qpdf(1) to output a collated PDF
+       --help                    display this help message then exit
+
+Part of the calendar project, currently at pingviini:Documents/art/log/13500
+EOF
+   exit $st;
+}
+
+GetOptions(
+   'sigsize|sig-size|signature-size=i' => \$sigsize,
+   'ignore-cover' => \$ignore_cover,
+   'n|number-of-pages=i' => \$global_npages,
+   'qpdf' => \$qpdf,
+   'v|verbose' => \$verbose,
+   'help' => \&usage,
+) || usage(1);
+
+if (!defined $sigsize) {
+   die "$0: Signature size must be defined\n";
+} elsif ($sigsize < 4) {
+   die "$0: Signature size must be at least 4\n";
+} elsif ($sigsize%4 != 0) {
+   die "$0: Signature size must be a multiple of 4\n";
+}
+
+if (@ARGV) {
+   for my $filename (@ARGV) {
+      gen_collation $filename;
+   }
+} else {
+   gen_collation;
+}
