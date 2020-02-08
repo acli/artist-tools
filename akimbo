@@ -162,8 +162,8 @@ sub decode_date ($) {
    $month = 11 if $month =~ /^Nov(?:ember)?$/i;
    $month = 12 if $month =~ /^Dec(?:ember)?$/i;
    $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
-   $s .= " $time" if defined $time;
-   $s .= " ($dow)" if defined $dow;
+   $s .= "T$time" if defined $time;
+   #$s .= " ($dow)" if defined $dow;
    return $s;
 }
 
