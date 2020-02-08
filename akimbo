@@ -81,6 +81,7 @@ sub get_file_contents ($) {
 sub decode_akimbo_rss_encoded_text ($) {
    my($s) = @_;
    $s =~ s/&#(\d+);/ chr($1); /sge;
+   $s =~ s/&amp;/\&/sg;
    $s = $1 if $s =~ /^<!\[CDATA\[(.*?)\]\]>$/s;
    return $s;
 }
@@ -159,9 +160,12 @@ sub break_data_into_articles ($) {
 	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
 	    print STDERR "DEBUG: ($s)\n" if $debug_p > 1;
 	    print STDERR Dumper($node) if $debug_p;
+	    push @$it, $node;
 	 }
       }
    } else {
+      # The assumption here is this is from an actual listing page
+      # Calls only: https://akimbo.ca/listings/?fwp_listing_type=calls
       die "Unimplemented";
    }
    return $it;
@@ -182,7 +186,7 @@ sub analyze_data () {
 }
 
 GetOptions(
-   'debug' => \$debug_p,
+   'debug' => sub { $debug_p += 1; },
    'get' => \$get_p,
 ) || exit(1);
 
