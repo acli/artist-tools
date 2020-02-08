@@ -14,6 +14,7 @@ use feature "unicode_strings";
 
 use Getopt::Long;
 use Data::Dumper;
+use POSIX;
 
 use vars qw( $debug_p );
 use vars qw( $get_p );
@@ -24,9 +25,38 @@ use vars qw( $feed_url );
 $scratch_dir = 'source';
 $feed_url = 'https://akimbo.ca/listings/feed/';
 
-# alias a='wget -U '\''Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)'\'' -x -c'
 sub get_feed () {
-
+   my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
+   my $now = strftime '%Y%m%d%H%M', localtime;
+   my $ok = 0;
+   my $h = opendir(DIR, $scratch_dir);
+   die "$scratch_dir: opendir: $!\n" unless defined $h;
+   for (;;) {
+      my $dirent = readdir DIR;
+   last unless defined $dirent;
+      $ok = 1 if -f "$scratch_dir/$dirent" && $dirent =~ /^\d{12}$/ && $dirent > $cutoff;
+   last if $ok;
+   }
+   closedir DIR;
+   if ($ok) {
+      print STDERR "get_feed: cache is still valid\n" if $debug_p;
+   } else {
+      print STDERR "get_feed: cache out of date, need to get new feed\n" if $debug_p;
+      my @cmd = (
+	 'wget',
+	 '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
+	 '-O', "$scratch_dir/$now",
+	 'https://akimbo.ca/listings/?fwp_listing_type=calls',	# Calls only (don't bother with jobs, events, etc.)
+      );
+      my $h = fork;
+      die "$cmd[0]: fork: $!\n" unless defined $h;
+      if (!$h) {
+	 exec { $cmd[0] } @cmd;
+	 die "$cmd[0]: exec: $!\n";
+      }
+      my $st = wait;
+      print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
+   }
 }
 
 sub is_gzip ($) {
@@ -190,5 +220,5 @@ GetOptions(
    'get' => \$get_p,
 ) || exit(1);
 
-get_feed if $get_p;
+get_feed;
 analyze_data;
