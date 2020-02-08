@@ -196,7 +196,54 @@ sub break_data_into_articles ($) {
    } else {
       # The assumption here is this is from an actual listing page
       # Calls only: https://akimbo.ca/listings/?fwp_listing_type=calls
-      die "Unimplemented";
+      my $state = 0;
+      my $node;
+      my $insert_node = sub {
+	 print STDERR Dumper($node) if $debug_p;
+	 push @$it, $node;
+	 $node = undef;
+      };
+      for my $s (@$data) {
+	 if ($state == 0) {
+	    if ($s =~ /<div class='card-body'>/) {
+	       $state = 1;
+	    }
+	 } elsif ($state == 1) {
+	    if ($s =~ /<a href='.*?fwp_listing_type=\w+'[^<>]*>([^<>]+)<\/a>/) {
+	       $node->{'class'} = $1;
+	       $state = 2;
+	    }
+	 } elsif ($state == 2) {
+	    if ($s =~ /<time\b[^<>]*?\bdatetime='([^'']+)'>([^<>]+)<\/time>/) {
+	       $node->{'pubDate'} = $1;
+	       $state = 3;
+	    }
+	 } elsif ($state == 3) {
+	    if ($s =~ /<h3[^<>]+><a href='([^'']+)'[^<>]*>([^<>]+)<\/a><\/h3>/) {
+	       $node->{'link'} = $1;
+	       $node->{'title'} = $2;
+	       $state = 4;
+	    }
+	 } elsif ($state == 4) {
+	    if ($s =~ /^\s*<div[^<>]*>Venue<\/div>\s*$/) {
+	       $state = 5;
+	    }
+	 } elsif ($state == 5) {
+	    if ($s =~ /^\s*<div[^<>]*><a href='([^'']+)'[^<>]*>(.*?)<\/a><\/div>\s*$/) {
+	       $node->{'venue-link'} = $1;
+	       push @{$node->{'venue'}}, $2;
+	    } elsif ($s =~ /^\s*<div[^<>]*>(.*?)<\/div>\s*$/) {
+	       push @{$node->{'venue'}}, $1;
+	    } elsif ($s =~ /^\s*<\/div>\s*$/) {
+	       $state = 4;
+	    }
+	 }
+	 if ($s =~ /<div class='card'>/) {
+	    &$insert_node if defined $node;
+	    $state = 0;
+	 }
+      }
+      &$insert_node if defined $node;
    }
    return $it;
 }
