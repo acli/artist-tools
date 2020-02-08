@@ -1,0 +1,190 @@
+#!/usr/bin/perl
+# vim: set sw=3 ai sm:
+
+use strict;
+use integer;
+
+# see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
+# THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
+#use v5.14; # //u modifier
+use utf8;
+use open qw( :encoding(UTF-8) :std );
+use charnames qw( :full :short );
+use feature "unicode_strings";
+
+use Getopt::Long;
+use Data::Dumper;
+
+use vars qw( $debug_p );
+use vars qw( $get_p );
+
+use vars qw( $scratch_dir );
+use vars qw( $feed_url );
+
+$scratch_dir = 'source';
+$feed_url = 'https://akimbo.ca/listings/feed/';
+
+# alias a='wget -U '\''Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)'\'' -x -c'
+sub get_feed () {
+
+}
+
+sub is_gzip ($) {
+   my($path) = @_;
+   my $it;
+   local(*INPUT, $_, $.);
+   my @cmd = ('/usr/bin/file', $path);
+   my $h = open(INPUT, '-|');
+   die "$cmd[0]: fork: $!\n" unless defined $h;
+   if (!$h) {
+      exec { $cmd[0] } @cmd;
+      die "$cmd[0]: exec: $!\n";
+   } else {
+      my $det = scalar <INPUT>;
+      close INPUT;
+      $it = $det =~ /gzip/;
+   }
+   return $it;
+}
+
+sub get_file_contents ($) {
+   my($path) = @_;
+   local(*INPUT, $_, $.);
+   my $h;
+   my $it;
+   if (is_gzip $path) {
+      my @cmd = ('/bin/zcat', $path);
+      $h = open(INPUT, '-|');
+      die "$cmd[0]: fork: $!\n" unless defined $h;
+      if (!$h) {
+	 exec { $cmd[0] } @cmd;
+	 die "$cmd[0]: exec: $!\n";
+      }
+      print STDERR "get_file_contents: gzip file \"$path\" opened\n" if $debug_p;
+   } else {
+      $h = open(INPUT, '<', $path);
+      die "$path: open: $!\n" unless defined $h;
+      print STDERR "get_file_contents: normal file \"$path\" opened\n" if $debug_p;
+   }
+   for (;;) {
+      my $s = scalar <INPUT>;
+   last unless defined $s;
+      chomp $s;
+      $it = [] unless defined $s;
+      push @$it, $s;
+      print STDERR "get_file_contents: s=($s)\n" if $debug_p;
+   }
+   close INPUT;
+   return $it;
+}
+
+sub decode_akimbo_rss_encoded_text ($) {
+   my($s) = @_;
+   $s =~ s/&#(\d+);/ chr($1); /sge;
+   $s = $1 if $s =~ /^<!\[CDATA\[(.*?)\]\]>$/s;
+   return $s;
+}
+
+sub decode_date ($) {
+   my($s) = @_;
+   my $dow;
+   my $time;
+   my($year, $month, $day);
+   my $sp = "(?:\\s| )";
+   if ($s =~ /^Sun(?:day)?,?\s+/i) {
+      ($s, $dow) = ($', 'U');
+   } elsif ($s =~ /^Mon(?:day)?,?\s+/i) {
+      ($s, $dow) = ($', 'M');
+   } elsif ($s =~ /^Tue(?:s(?:day)?)?,?\s+/i) {
+      ($s, $dow) = ($', 'T');
+   } elsif ($s =~ /^Wed(?:nes(?:day)?)?,?\s+/i) {
+      ($s, $dow) = ($', 'W');
+   } elsif ($s =~ /^Thu(?:r(?:s(?:day)?)?)?,?\s+/) {
+      ($s, $dow) = ($', 'R');
+   } elsif ($s =~ /^Fri(?:day)?,?\s+/i) {
+      ($s, $dow) = ($', 'M');
+   } elsif ($s =~ /^Sat(?:ur(?:day)?)?,?\s+/i) {
+      ($s, $dow) = ($', 'S');
+   }
+   $s =~ s/\s+(?:at|by)\s+(?=\d)/ /;
+   if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)$/i) {
+      ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
+   } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)$/i) {
+      ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+   }
+   $s =~ s/\s*\.$//;
+   if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/) {
+      ($year, $month, $day) = ($3, $2, $1);
+   } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/) {
+      ($year, $month, $day) = ($3, $1, $2);
+   }
+   $month = 1 if $month =~ /^Jan(?:uary)?$/i;
+   $month = 2 if $month =~ /^Feb(?:ruary)?$/i;
+   $month = 3 if $month =~ /^Mar(?:ch)?$/i;
+   $month = 4 if $month =~ /^Apr(?:il)?$/i;
+   $month = 5 if $month =~ /^May$/i;
+   $month = 6 if $month =~ /^Jun(?:e)?$/i;
+   $month = 7 if $month =~ /^Jul(?:y)?$/i;
+   $month = 8 if $month =~ /^Aug(?:ust)?$/i;
+   $month = 9 if $month =~ /^Sep(?:t(?:ember)?)?$/i;
+   $month = 10 if $month =~ /^Oct(?:ober)?$/i;
+   $month = 11 if $month =~ /^Nov(?:ember)?$/i;
+   $month = 12 if $month =~ /^Dec(?:ember)?$/i;
+   $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
+   $s .= " $time" if defined $time;
+   $s .= " ($dow)" if defined $dow;
+   return $s;
+}
+
+sub break_data_into_articles ($) {
+   my($data) = @_;
+   my $it;
+   if ($data->[0] =~ /<\?xml/) {
+      # RSS - In theory this is all good, but Akimbo doesn't encode real categories (e.g., calls) in the RSS, so it's of limited use
+      for my $s (split(/\s*<item>(?:\s*<\/item>\s*)?/s, join("\n", @$data))) {
+	 $s =~ s/^.*<channel>.*<item>$//s;			# first item
+	 $s =~ s/<\/item>\s*<\/channel>\s*<\/rss>\s*$//s;	# last item
+	 $s =~ s/^\s*//s;
+	 $s =~ s/\s*$//s;
+	 if ($s =~ /<guid\b[^<>]*>(.*?)<\/guid>/s) {
+	    my $node = {'guid' => decode_akimbo_rss_encoded_text $1};
+	    for my $field ('title', 'link', 'pubDate', 'dc:creator', 'description', 'content:encoded') {
+	       $node->{$field} = decode_akimbo_rss_encoded_text $1 if $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/s;
+	    }
+	    for my $field ('category') {
+	       push @{$node->{$field}}, decode_akimbo_rss_encoded_text $1 while $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/sg;
+	    }
+	    $node->{'deadline'}->{$2} = decode_date($2) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+	    $node->{'deadline'} = [sort values %{$node->{'deadline'}}];
+	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
+	    print STDERR "DEBUG: ($s)\n" if $debug_p > 1;
+	    print STDERR Dumper($node) if $debug_p;
+	 }
+      }
+   } else {
+      die "Unimplemented";
+   }
+   return $it;
+}
+
+sub analyze_data () {
+   my $h = opendir(DIR, $scratch_dir);
+   die "$scratch_dir: opendir: $!\n" unless defined $h;
+   for (;;) {
+      my $dirent = readdir DIR;
+   last unless defined $dirent;
+      if (-f "$scratch_dir/$dirent") {
+	 my $data = get_file_contents "$scratch_dir/$dirent";
+	 my $articles = break_data_into_articles $data;
+      }
+   }
+   closedir DIR;
+}
+
+GetOptions(
+   'debug' => \$debug_p,
+   'get' => \$get_p,
+) || exit(1);
+
+get_feed if $get_p;
+analyze_data;
