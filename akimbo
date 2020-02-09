@@ -445,16 +445,16 @@ sub merge_data () {
 
 sub display_listing ($) {
    my($articles) = @_;
-   my $fmt = "%-5s  %-5.5s  %-21s  %s\n";
-   printf $fmt, 'ID', 'Type', 'Deadline', 'Title';
+   my $fmt = "%-5.5s  %-21s  %-5s  %s\n";
+   printf $fmt, 'Type', 'Deadline', 'ID', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
       if (($deadlines && @$deadlines) || $all_p) {
-	 printf $fmt, $article->{'p'}, $article->{'type'}, $article->{'effective-deadline'}, $article->{'title'};
+	 printf $fmt, $article->{'type'}, $article->{'effective-deadline'}, $article->{'p'}, $article->{'title'};
 	 if ($deadlines && @$deadlines > 1) {
 	    for (my $i = 1; $i < @$deadlines; $i += 1) {
-	       printf $fmt, '', '', $deadlines->[$i], '';
+	       printf $fmt, '', $deadlines->[$i], '', '';
 	    }
 	 }
       }
