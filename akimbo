@@ -221,16 +221,19 @@ sub decode_akimbo_rss_encoded_text ($) {
 }
 
 sub decode_date ($) {
-   my($s) = @_;
+   my($s0) = @_;
    my $tz;
    my $dow;
    my $time;
    my($year, $month, $day);
    my $sp = "(?:\\s| )";
+   my $s = $s0;
    local($', $&, $', $1, $2);
    if ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
       if ($s =~ /\s+E[DS]?T\b|\s+\([Ee]astern\)/) {
 	 ($s, $tz) = ("$`$'", 'ET');
+      } elsif ($s =~ /\s+M[DS]?T\b|\s+\([Mm]ountain\)/) {
+	 ($s, $tz) = ("$`$'", 'MT');
       }
       if ($s =~ /^Sun(?:day)?,?\s+/i) {
 	 ($s, $dow) = ($', 'U');
@@ -252,6 +255,10 @@ sub decode_date ($) {
 	 ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)$/i) {
 	 ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+      } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
+	 ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
+      } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
+	 ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
       }
       $s =~ s/\s*[\.,\@]\s*$//; # must not do this until after we do a.m./p.m.
       if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/i) {
@@ -271,7 +278,7 @@ sub decode_date ($) {
       $month = 10 if $month =~ /^Oct(?:ober)?$/i;
       $month = 11 if $month =~ /^Nov(?:ember)?$/i;
       $month = 12 if $month =~ /^Dec(?:ember)?$/i;
-      warn "Warning: Cannot parse date \"$s\"\n" unless defined $year;
+      warn "Warning: Cannot parse date \"$s0\" (left: \"$s\")\n" unless defined $year;
       $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
       $s .= "T$time" if defined $time;
       #$s .= " ($dow)" if defined $dow;
