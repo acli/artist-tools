@@ -417,7 +417,7 @@ sub merge_data () {
 
 sub display_listing ($) {
    my($articles) = @_;
-   my $fmt = "%-5s  %-4.4s  %-21s  %s\n";
+   my $fmt = "%-5s  %-5.5s  %-21s  %s\n";
    printf $fmt, 'ID', 'Type', 'Deadline', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
