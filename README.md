@@ -43,6 +43,10 @@ In particular, not all zones are recognized,
 the user is assumed to be in the Eastern time zone,
 and the script doesn’t know how to deal with the Atlantic time zone.
 
+Paths of the script’s dependencies like *file*(1) or *wget*(1) are all hard-coded.
+
+The --dry-run option doesn’t prevent all actions.
+
 Dependencies
 ============
 
