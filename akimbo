@@ -444,18 +444,43 @@ sub merge_data () {
    return $articles;
 }
 
+sub determine_urgency ($) {
+   my($deadlines) = @_;
+   my $t0 = time;
+   my $urgency;
+   for my $deadline (@$deadlines) {
+      if ($deadline =~ /^(\d\d\d\d)-(\d\d)-(\d\d)(?:T(\d\d):(\d\d)(?::(\d\d))?)?(?: \(([A-Z]+)\))?$/) {
+	 my($year, $month, $day, $hour, $minute, $second, $tz) = ($1, $2, $3, $4, $5, $6, $7);
+	 my $t = mktime($second + 0, $minute + 0, $hour + 0, $day, $month - 1, $year - 1900);
+	 # XXX Adjust for time zone differences =P
+	 if (defined $tz) {
+	    $t -= 10800 if $tz eq 'PT';
+	    $t -=  7200 if $tz eq 'MT';
+	    $t -=  3600 if $tz eq 'CT';
+	    $t +=  3600 if $tz eq 'AT';	# FIXME this is wrong because AT has no DST
+	    $t +=  5400 if $tz eq 'NT';
+	 }
+	 $urgency = ($t - $t0 + 12*3600)/86400;
+      }
+   last if defined $urgency && $urgency >= 0;
+   }
+   return $urgency;
+}
+
 sub display_listing ($) {
    my($articles) = @_;
-   my $fmt = "%-5.5s  %-21s  %-5s  %s\n";
-   printf $fmt, 'Type', 'Deadline', 'ID', 'Title';
+   my $fmt = "%-5.5s  %-21s  %-7s  %-5s  %s\n";
+   printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
       if (($deadlines && @$deadlines) || $all_p) {
-	 printf $fmt, $article->{'type'}, $article->{'effective-deadline'}, $article->{'p'}, $article->{'title'};
+	 my $urgency = determine_urgency $deadlines;
+	 $urgency = 'PAST' if $urgency < 0;
+	 printf $fmt, $article->{'type'}, $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
 	 if ($deadlines && @$deadlines > 1) {
 	    for (my $i = 1; $i < @$deadlines; $i += 1) {
-	       printf $fmt, '', $deadlines->[$i], '', '';
+	       printf $fmt, '', $deadlines->[$i], '', '', '';
 	    }
 	 }
       }
