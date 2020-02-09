@@ -227,7 +227,7 @@ sub break_data_into_articles ($) {
 	 } elsif ($state == 3) {
 	    if ($s =~ /<h3[^<>]+><a href='([^'']+)'[^<>]*>([^<>]+)<\/a><\/h3>/) {
 	       $node->{'link'} = $1;
-	       $node->{'title'} = $2;
+	       $node->{'title'} = decode_akimbo_rss_encoded_text $2;
 	       $state = 4;
 	    }
 	 } elsif ($state == 4) {
