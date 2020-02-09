@@ -42,7 +42,7 @@ sub get_feed () {
    if ($ok) {
       print STDERR "get_feed: cache is still valid\n" if $debug_p;
    } else {
-      print STDERR "get_feed: cache out of date, need to get new feed\n" if $debug_p;
+      print STDERR "get_feed: cache out of date, need to get new feed\n";
       my @cmd = (
 	 'wget',
 	 '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
@@ -276,11 +276,11 @@ sub analyze_data () {
 
 sub display_listing ($) {
    my($articles) = @_;
-   my $fmt = "%-25s %s\n";
+   my $fmt = "%-16s  %s\n";
    printf $fmt, 'Deadline', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
-      printf "%-25s %s\n", $article->{'effective-deadline'}, $article->{'title'};
+      printf $fmt, $article->{'effective-deadline'}, $article->{'title'};
    }
 }
 
