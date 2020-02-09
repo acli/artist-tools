@@ -17,3 +17,10 @@ require loading individual posts
 (just like we have to control-click each post to open individual posts on a graphical web browser),
 which are always accompanied by a delay to further reduce server load.
 Posts are cached so every post will only be loaded once unless their URL changes.
+
+Dependencies
+============
+
+- *file*(1)
+- *wget*(1)
+- *zcat*(1) (from *gzip*)
