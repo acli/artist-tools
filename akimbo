@@ -20,22 +20,24 @@ use JSON::PP;
 use vars qw( $debug_p );
 use vars qw( $get_p );
 
-use vars qw( $scratch_dir );
+use vars qw( $listings_cache );
+use vars qw( $posts_cache );
 use vars qw( $feed_url );
 
-$scratch_dir = 'source';
+$listings_cache = 'listings';
+$posts_cache = 'posts';
 $feed_url = 'https://akimbo.ca/listings/feed/';
 
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
    my $now = strftime '%Y%m%d%H%M', localtime;
    my $ok = 0;
-   my $h = opendir(DIR, $scratch_dir);
-   die "$scratch_dir: opendir: $!\n" unless defined $h;
+   my $h = opendir(DIR, $listings_cache);
+   die "$listings_cache: opendir: $!\n" unless defined $h;
    for (;;) {
       my $dirent = readdir DIR;
    last unless defined $dirent;
-      $ok = 1 if -f "$scratch_dir/$dirent" && $dirent =~ /^\d{12}$/ && $dirent > $cutoff;
+      $ok = 1 if -f "$listings_cache/$dirent" && $dirent =~ /^\d{12}$/ && $dirent > $cutoff;
    last if $ok;
    }
    closedir DIR;
@@ -46,10 +48,10 @@ sub get_feed () {
       my @cmd = (
 	 'wget',
 	 '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
-	 '-O', "$scratch_dir/$now",
+	 '-O', "$listings_cache/$now",
 	 'https://akimbo.ca/listings/?fwp_listing_type=calls',	# Calls only (don't bother with jobs, events, etc.)
       );
-      mkdir $scratch_dir unless -d $scratch_dir;
+      mkdir $listings_cache unless -d $listings_cache;
       my $h = fork;
       die "$cmd[0]: fork: $!\n" unless defined $h;
       if (!$h) {
@@ -256,13 +258,13 @@ sub break_data_into_articles ($) {
 
 sub analyze_data () {
    my $articles;
-   my $h = opendir(DIR, $scratch_dir);
-   die "$scratch_dir: opendir: $!\n" unless defined $h;
+   my $h = opendir(DIR, $listings_cache);
+   die "$listings_cache: opendir: $!\n" unless defined $h;
    for (;;) {
       my $dirent = readdir DIR;
    last unless defined $dirent;
-      if (-f "$scratch_dir/$dirent") {
-	 my $data = get_file_contents "$scratch_dir/$dirent";
+      if (-f "$listings_cache/$dirent") {
+	 my $data = get_file_contents "$listings_cache/$dirent";
 	 for my $article (@{ break_data_into_articles $data }) {
 	    my $deadlines = $article->{'deadline'};
 	    $article->{'effective-deadline'} = !defined $deadlines? 'N/A': @$deadlines == 1? $deadlines->[0]: 'MULTIPLE';
