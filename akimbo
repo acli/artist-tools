@@ -258,7 +258,7 @@ sub decode_date ($;$) {
       } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	 ($s, $dow) = ("$`$'", 'S');
       }
-      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
+      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
       $s =~ s/\s*\.\s*$//;
       if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
