@@ -300,12 +300,16 @@ sub convert_to_plain_text ($;$) {
    $s =~ s/<\/?(?:em|span|strong)\b[^<>]*>//sgi;
    $s =~ s/<img\b[^<>]*alt="([^"]+)"[^<>]*>/\1/sgi;
    $s =~ s/<img\b[^<>]*>//sgi;
+   $s =~ s{<h4\b[^<>]*>((?:(?!<\/h4>).)+)<\/h4>}{
+	    "\n" . $1 . "\n" . ('-' x length $1);
+	 }sgie;
    $s =~ s{<a\b[^<>]*?href="([^"]+)"[^<>]*>((?:(?!<\/a>).)+)<\/a>}{
 	    $links{$1} = $2 unless $1 eq $2 || $1 eq "mailto:$2" || $1 eq "http://$2";
 	    $2;
 	 }sgie;
    $s =~ s/^\s*//s;
    $s =~ s/\s*$//s;
+   $s =~ s/\n{3,}/\n\n/sg;
    if (%links) {
       $s .= "\n\nLinks:";
       $s .= join('', map { sprintf("\n%s: %s", $links{$_}, $_) } keys %links);
