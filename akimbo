@@ -25,6 +25,8 @@ use vars qw( $dry_run_p );
 use vars qw( $almost_all_p );
 use vars qw( $all_p );
 
+use vars qw( $rc_path );
+use vars qw( $cache_root );
 use vars qw( $listings_cache );
 use vars qw( $posts_cache );
 use vars qw( $feed_url );
@@ -33,8 +35,12 @@ use vars qw( $ua_identity );
 # START OF CONFIGURABLE OPTIONS
 # -----------------------------------------------------------------------------
 
+$rc_path = "$ENV{HOME}/.akimbo";
+$cache_root = "$ENV{HOME}/.cache/akimbo";
+
 $listings_cache = 'listings';
 $posts_cache = 'posts';
+
 $feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff
 #$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
 
@@ -73,6 +79,23 @@ sub read_ini_file ($) {
       print STDERR "read_ini_file: closed ini file\n" if $debug_p;
    }
    return $it;
+}
+
+sub fix_cache_paths () {
+   if (defined $cache_root) {
+      my @cache_root = split(/\/+/, $cache_root);
+      my @dirs = map { join('', map { "/$_" } @cache_root[0..$_]) } (0..scalar @cache_root);
+      $listings_cache = "$cache_root/$listings_cache";
+      $posts_cache = "$cache_root/$posts_cache";
+      push @dirs, $listings_cache;
+      push @dirs, $posts_cache;
+      for my $dir (@dirs) {
+	 if (!-d $dir) {
+	    print STDERR "fix_cache_paths: creating directory \"$dir\"...\n" if $debug_p;
+	    mkdir $dir || warn "Warning: $dir: mkdir: $!\n";
+	 }
+      }
+   }
 }
 
 sub get_feed () {
@@ -541,7 +564,7 @@ sub display_post ($$) {
 
 sub display_listing ($) {
    my($articles) = @_;
-   my $config = read_ini_file "$ENV{HOME}/.akimbo";
+   my $config = read_ini_file $rc_path;
    my $fmt = "%-5.5s  %-21s  %-7s  %-5s  %s\n";
    printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
@@ -569,6 +592,7 @@ GetOptions(
    'dry-run|n' => \$dry_run_p,
 ) || exit(1);
 
+fix_cache_paths;
 get_feed;
 my $data = merge_data;
 if (@ARGV) {
