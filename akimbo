@@ -111,6 +111,7 @@ sub parse_cached_post ($) {
 	 }
       } elsif ($state == 2) {
       }
+   last if /<h5[^<>]*>Related Content<\/h5>/;
    }
    $tmp =~ s/\s*<\/div>\s*<\/div>\s*$//s;
    if ($tmp =~ /^\s*<p><img\b[^<>]*src="([^""]+)"[^<>]*><\/p>\s*/s) {
@@ -229,6 +230,22 @@ sub get_post ($) {
       die "Something is wrong...page ID not detected in page, please look at $tmpname to debug\n";
    }
    return $article;
+}
+
+sub convert_to_plain_text ($) {
+   my($s) = @_;
+   my %links;
+   $s =~ s/<\/p>\s*<p>/\n  /sgi;
+   $s =~ s/<(?:br\s*\/|\/?p)>/\n/sgi;
+   $s =~ s/<\/?(?:span|strong)\b[^<>]*>//sgi;
+   $s =~ s/<a\b[^<>]*?href="([^"]+)"[^<>]*>((?:(?!<\/a>).)+)<\/a>/ $links{$1} = $2 unless $1 eq $2 || $1 eq "mailto:$2"; $2; /sgie;
+   $s =~ s/^\s*//s;
+   $s =~ s/\s*$//s;
+   if (%links) {
+      $s .= "\n\nLinks:";
+      $s .= join('', map { sprintf("\n%s: %s", $links{$_}, $_) } keys %links);
+   }
+   return $s;
 }
 
 sub decode_akimbo_rss_encoded_text ($) {
@@ -467,6 +484,21 @@ sub determine_urgency ($) {
    return $urgency;
 }
 
+sub display_post ($$) {
+   my($p, $articles) = @_;
+   my $article;
+   for my $candidate (values %$articles) {
+      $article = $candidate if defined $candidate->{'p'} && $candidate->{'p'} == $p;
+   }
+   die "No post numbered $p\n" unless defined $article;
+   printf "\n";
+   printf "%s\n", $article->{'title'};
+   printf "%s\n", ('=' x length $article->{'title'});
+   printf "\n%s\n", convert_to_plain_text($article->{'content:encoded'});
+   printf "\n";
+   printf "%s\n", $article->{'link'};
+}
+
 sub display_listing ($) {
    my($articles) = @_;
    my $fmt = "%-5.5s  %-21s  %-7s  %-5s  %s\n";
@@ -497,4 +529,10 @@ GetOptions(
 
 get_feed;
 my $data = merge_data;
-display_listing $data;
+if (@ARGV) {
+   for my $id (@ARGV) {
+      display_post $id, $data;
+   }
+} else {
+   display_listing $data;
+}
