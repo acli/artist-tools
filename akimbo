@@ -589,7 +589,7 @@ sub display_listing ($) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
       my $p = $article->{'p'};
-      if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'})) || $all_p) {
+      if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'} || $almost_all_p)) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
 	 $urgency = '(past)' if $urgency < 0;
 	 $urgency = 'TODAY' if $urgency == 0;
