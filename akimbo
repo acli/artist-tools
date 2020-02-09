@@ -110,6 +110,9 @@ sub parse_cached_post ($) {
 	    $tmp .= "\n";
 	 }
       } elsif ($state == 2) {
+	 if ($s =~ /<a href='.*?fwp_sublisting_tags=(\w+)'[^<>]*>([^<>]+)<\/a>/) {
+	    push @{$it->{'category'}}, $2;
+	 }
       }
    last if /<h5[^<>]*>Related Content<\/h5>/;
    }
@@ -502,6 +505,7 @@ sub display_post ($$) {
    printf "%s\n", ('=' x length $article->{'title'});
    printf "\n%s\n", convert_to_plain_text($article->{'content:encoded'});
    printf "\n";
+   printf "%s\n", join(' ', map { "#$_" } @{$article->{'category'}});
    printf "%s\n", $article->{'link'};
 }
 
