@@ -87,6 +87,8 @@ sub parse_cached_post ($) {
 	    $it->{'p'} = $1;
 	 } elsif ($s =~ /^\s*<div class='[^'']*\bcontent-block\b[^'']*'>\s*$/) {
 	    $state = 1;
+	 } elsif ($s =~ /<script type='application\/ld\+json'[^<>]*>.*?"datePublished":"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-\+]\d{2}:\d{2})"/) {
+	    $it->{'pubDate'} = $1;
 	 } elsif ($s =~ /<article class="[^""]*\blisting_type-([^""\s]+)\b[^""]*">/) {
 	    $it->{'type'} = $1;
 	 }
@@ -109,7 +111,7 @@ sub parse_cached_post ($) {
       $it->{'title'} = $1;
       $tmp = $';
    }
-   $it->{'deadline'}->{+decode_date($2)} = decode_date($2) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+   $it->{'deadline'}->{+decode_date($2, $it->{'pubDate'})} = decode_date($2, $it->{'pubDate'}) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
    $it->{'deadline'} = [sort values %{$it->{'deadline'}}];
    $it->{'content:encoded'} = decode_akimbo_rss_encoded_text($tmp);
    return $it;
@@ -225,8 +227,9 @@ sub decode_akimbo_rss_encoded_text ($) {
    return $s;
 }
 
-sub decode_date ($) {
-   my($s0) = @_;
+sub decode_date ($;$) {
+   my($s0, $pubdate) = @_;
+   my $default_year = $1 if defined $pubdate && $pubdate =~ /^(\d{4})-/;
    my $tz;
    my $dow;
    my $time;
@@ -271,6 +274,10 @@ sub decode_date ($) {
 	 ($year, $month, $day) = ($3, $2, $1);
       } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/i) {
 	 ($year, $month, $day) = ($3, $1, $2);
+      } elsif ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+)$/i && defined $default_year) {
+	 ($year, $month, $day) = ($default_year, $2, $1);
+      } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?$/i && defined $default_year) {
+	 ($year, $month, $day) = ($default_year, $1, $2);
       }
       $month = 1 if $month =~ /^Jan(?:uary)?$/i;
       $month = 2 if $month =~ /^Feb(?:ruary)?$/i;
@@ -311,7 +318,7 @@ sub break_data_into_articles ($) {
 	    for my $field ('category') {
 	       push @{$node->{$field}}, decode_akimbo_rss_encoded_text $1 while $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/sg;
 	    }
-	    $node->{'deadline'}->{$2} = decode_date($2) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+	    $node->{'deadline'}->{$2, $node->{'pubDate'}} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
 	    $node->{'deadline'} = [sort values %{$node->{'deadline'}}];
 	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
 	    print STDERR "DEBUG: ($s)\n" if $debug_p > 2;
