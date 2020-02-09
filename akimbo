@@ -288,10 +288,13 @@ sub get_post ($) {
    return $article;
 }
 
-sub convert_to_plain_text ($) {
-   my($s) = @_;
+sub convert_to_plain_text ($;$) {
+   my($s, $w) = @_;
+   $w = 79 unless defined $w;
    my %links;
+   my $hr = '-' x $w;
    $s =~ s/<br\s*\/?>(?:<br\s*\/?>)*/\n/sgi;
+   $s =~ s/<hr\s*\/?>(?:<br\s*\/?>)*/$hr\n/sgi;
    $s =~ s/<\/p>\s*<p\b[^<>]*>/\n  /sgi;
    $s =~ s/<(?:\/?p\b[^<>]*)>/\n/sgi;
    $s =~ s/<\/?(?:em|span|strong)\b[^<>]*>//sgi;
@@ -553,10 +556,11 @@ sub display_post ($$) {
       $article = $candidate if defined $candidate->{'p'} && $candidate->{'p'} == $p;
    }
    die "No post numbered $p\n" unless defined $article;
+   my $w = length $article->{'title'};
    printf "\n";
    printf "%s\n", $article->{'title'};
-   printf "%s\n", ('=' x length $article->{'title'});
-   printf "\n%s\n", convert_to_plain_text($article->{'content:encoded'});
+   printf "%s\n", ('=' x $w);
+   printf "\n%s\n", convert_to_plain_text($article->{'content:encoded'}, $w);
    printf "\n";
    printf "%s\n", join(' ', map { "#$_" } @{$article->{'category'}});
    printf "%s\n", $article->{'link'};
