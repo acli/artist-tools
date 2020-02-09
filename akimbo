@@ -424,6 +424,16 @@ sub merge_data () {
       }
    }
 
+   # Go through the deadlines and if we find one deadline with a time zone code and another one without, remove the one without
+   for my $link (keys %$articles) {
+      my $article = $articles->{$link};
+      my %deadlines = map { $_ => $_ } @{$article->{'deadline'}};
+      for my $deadline (keys %deadlines) {
+	 delete $deadlines{$`} if $deadline =~ / \([A-Z]+\)$/ && defined $deadlines{$`};
+      }
+      $articles->{$link}->{'deadline'} = [sort keys %deadlines];
+   }
+
    # Calculate effective deadlines
    for my $link (keys %$articles) {
       my $article = $articles->{$link};
