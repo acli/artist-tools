@@ -27,7 +27,8 @@ use vars qw( $feed_url );
 
 $listings_cache = 'listings';
 $posts_cache = 'posts';
-$feed_url = 'https://akimbo.ca/listings/feed/';
+$feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff
+#$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
 
 sub insert_random_delay () {
    sleep(5 + rand 5);
@@ -54,7 +55,7 @@ sub get_feed () {
 	 'wget',
 	 '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
 	 '-O', "$listings_cache/$now",
-	 'https://akimbo.ca/listings/?fwp_listing_type=calls',	# Calls only (don't bother with jobs, events, etc.)
+	 $feed_url,
       );
       mkdir $listings_cache unless -d $listings_cache;
       if ($dry_run_p) {
