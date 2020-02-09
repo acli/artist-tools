@@ -235,10 +235,16 @@ sub get_post ($) {
 sub convert_to_plain_text ($) {
    my($s) = @_;
    my %links;
-   $s =~ s/<\/p>\s*<p>/\n  /sgi;
-   $s =~ s/<(?:br\s*\/|\/?p)>/\n/sgi;
+   $s =~ s/<br\s*\/?>(?:<br\s*\/?>)*/\n/sgi;
+   $s =~ s/<\/p>\s*<p\b[^<>]*>/\n  /sgi;
+   $s =~ s/<(?:\/?p\b[^<>]*)>/\n/sgi;
    $s =~ s/<\/?(?:span|strong)\b[^<>]*>//sgi;
-   $s =~ s/<a\b[^<>]*?href="([^"]+)"[^<>]*>((?:(?!<\/a>).)+)<\/a>/ $links{$1} = $2 unless $1 eq $2 || $1 eq "mailto:$2"; $2; /sgie;
+   $s =~ s/<img\b[^<>]*alt="([^"]+)"[^<>]*>/\1/sgi;
+   $s =~ s/<img\b[^<>]*>//sgi;
+   $s =~ s{<a\b[^<>]*?href="([^"]+)"[^<>]*>((?:(?!<\/a>).)+)<\/a>}{
+	    $links{$1} = $2 unless $1 eq $2 || $1 eq "mailto:$2" || $1 eq "http://$2";
+	    $2;
+	 }sgie;
    $s =~ s/^\s*//s;
    $s =~ s/\s*$//s;
    if (%links) {
