@@ -549,6 +549,16 @@ sub determine_urgency ($) {
    return $urgency;
 }
 
+sub format_deadline ($) {
+   my($deadline) = @_;
+   my $fmt = '%4s-%2s-%2s %2s%s%2s %-2s';
+   if ($deadline =~ /^(\d\d\d\d)-(\d\d)-(\d\d)(?:T(\d\d):(\d\d)(?::(\d\d))?)?(?: \(([A-Z]+)\))?$/) {
+      my($year, $month, $day, $hour, $minute, $second, $tz) = ($1, $2, $3, $4, $5, $6, $7);
+      $deadline = sprintf($fmt, $year, $month, $day, (defined $hour? ($hour, ':', $minute): ('', '', '')), (defined $tz? $tz: ''));
+   }
+   return $deadline;
+}
+
 sub display_post ($$) {
    my($p, $articles) = @_;
    my $article;
@@ -569,7 +579,7 @@ sub display_post ($$) {
 sub display_listing ($) {
    my($articles) = @_;
    my $config = read_ini_file $rc_path;
-   my $fmt = "%-5.5s  %-21s  %-7s  %-5s  %s\n";
+   my $fmt = "%-5.5s  %-19s  %-8s  %-5s  %s\n";
    printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
@@ -577,11 +587,13 @@ sub display_listing ($) {
       my $p = $article->{'p'};
       if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'})) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
-	 $urgency = 'PAST' if $urgency < 0;
-	 printf $fmt, $article->{'type'}, $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
+	 $urgency = '(past)' if $urgency < 0;
+	 $urgency = 'TODAY' if $urgency == 0;
+	 $urgency = 'tomorrow' if $urgency == 1;
+	 printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
 	 if ($deadlines && @$deadlines > 1) {
 	    for (my $i = 1; $i < @$deadlines; $i += 1) {
-	       printf $fmt, '', $deadlines->[$i], '', '', '';
+	       printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
 	    }
 	 }
       }
