@@ -241,7 +241,7 @@ sub convert_to_plain_text ($) {
    $s =~ s/<br\s*\/?>(?:<br\s*\/?>)*/\n/sgi;
    $s =~ s/<\/p>\s*<p\b[^<>]*>/\n  /sgi;
    $s =~ s/<(?:\/?p\b[^<>]*)>/\n/sgi;
-   $s =~ s/<\/?(?:span|strong)\b[^<>]*>//sgi;
+   $s =~ s/<\/?(?:em|span|strong)\b[^<>]*>//sgi;
    $s =~ s/<img\b[^<>]*alt="([^"]+)"[^<>]*>/\1/sgi;
    $s =~ s/<img\b[^<>]*>//sgi;
    $s =~ s{<a\b[^<>]*?href="([^"]+)"[^<>]*>((?:(?!<\/a>).)+)<\/a>}{
