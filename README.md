@@ -1,9 +1,9 @@
 This is a script to poll Akimbo (a site used by Canadian artists) to display
 a list of calls for submissions, together with their indicated deadlines.
 The calls are sorted by deadline,
-so the most urgent calls listed first.
+so the most urgent calls are listed first.
 
-This script was written mainly because it’s very difficult to figure out what the deadlines using Akimbo’s interface.
+This script was written mainly because it’s very difficult to figure out what the deadlines are using Akimbo’s interface.
 It is also impossible to filter out listings that are past their deadlines using their UI.
 
 What is treated as a call?
