@@ -18,6 +18,7 @@ use POSIX;
 use JSON::PP;
 
 use vars qw( $debug_p );
+use vars qw( $dry_run_p );
 use vars qw( $get_p );
 
 use vars qw( $listings_cache );
@@ -27,6 +28,10 @@ use vars qw( $feed_url );
 $listings_cache = 'listings';
 $posts_cache = 'posts';
 $feed_url = 'https://akimbo.ca/listings/feed/';
+
+sub insert_random_delay () {
+   sleep(5 + rand 5);
+}
 
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
@@ -52,18 +57,57 @@ sub get_feed () {
 	 'https://akimbo.ca/listings/?fwp_listing_type=calls',	# Calls only (don't bother with jobs, events, etc.)
       );
       mkdir $listings_cache unless -d $listings_cache;
-      my $h = fork;
-      die "$cmd[0]: fork: $!\n" unless defined $h;
-      if (!$h) {
-	 exec { $cmd[0] } @cmd;
-	 die "$cmd[0]: exec: $!\n";
+      if ($dry_run_p) {
+	 print STDERR "Pretending to execute command: [(", join('\051 \050', @cmd), ")]\n";
+      } else {
+	 my $h = fork;
+	 die "$cmd[0]: fork: $!\n" unless defined $h;
+	 if (!$h) {
+	    exec { $cmd[0] } @cmd;
+	    die "$cmd[0]: exec: $!\n";
+	 }
+	 my $st = wait;
+	 print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
       }
-      my $st = wait;
-      print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
    }
 }
 
-sub get_post ($) {
+sub parse_cached_post ($) {
+   my($s0) = @_;
+   my $it;
+   my $state = 0;
+   my $tmp = '';
+   for my $s (@$s0) {
+      if ($state == 0){
+	 if ($s =~ /^\s*<link rel="canonical" href="(.*?)"\s*\/>\s*$/) {
+	    $it->{'link'} = $1;
+	 } elsif ($s =~ /^\s*<link rel='shortlink' href='.*?\?p=(\d+)'\s*\/>\s*$/) {
+	    $it->{'p'} = $1;
+	 } elsif ($s =~ /^\s*<div class='[^'']*\bcontent-block\b[^'']*'>\s*$/) {
+	    $state = 1;
+	 }
+      } elsif ($state == 1) {
+	 if ($s =~ /^\s*<div class='[^'']*\bcontent-col-sidebar\b[^'']*'>\s*$/) {
+	    $state = 2;
+	 } else {
+	    $tmp .= $s;
+	    $tmp .= "\n";
+	 }
+      }
+   }
+   $tmp =~ s/\s*<\/div>\s*<\/div>\s*$//s;
+   if ($tmp =~ /^\s*<p><img\b[^<>]*src="([^""]+)"[^<>]*><\/p>\s*/s) {
+      $it->{'img'} = $1;
+      $tmp = $';
+   }
+   if ($tmp =~ /^\s*<h4>((?:(?!<\/h4>).)+)<\/h4>\s*/s) {
+      $it->{'title'} = $1;
+      $tmp = $';
+   }
+   $it->{'deadline'}->{$2} = decode_date($2) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+   $it->{'deadline'} = [sort values %{$it->{'deadline'}}];
+   $it->{'content:encoded'} = decode_akimbo_rss_encoded_text($tmp);
+   return $it;
 }
 
 sub is_gzip ($) {
@@ -115,6 +159,59 @@ sub get_file_contents ($) {
    return $it;
 }
 
+sub get_cached_posts () {
+   my $posts = {};
+   my $h = opendir(DIR, $posts_cache);
+   if (!defined $h) {
+      print STDERR "warning: $posts_cache: opendir: $!\n" if $debug_p;
+      mkdir $posts_cache;
+   } else {
+      for (;;) {
+	 my $dirent = readdir DIR;
+      last unless defined $dirent;
+	 if (-f "$posts_cache/$dirent") {
+	    my $article = parse_cached_post get_file_contents "$posts_cache/$dirent";
+	    $posts->{$article->{'link'}} = $article;
+	 }
+      }
+      closedir DIR;
+   }
+   return $posts;
+}
+
+sub get_post ($) {
+   my($link) = @_;
+   my $now = strftime '%Y%m%d%H%M', localtime;
+   my $ok = 0;
+   my @cmd = (
+      'wget',
+      '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
+      '-O', "$posts_cache/$$.tmp",
+      $link,
+   );
+   mkdir $posts_cache unless -d $posts_cache;
+   if ($dry_run_p) {
+      print STDERR "Pretending to execute command: [(", join('\051 \050', @cmd), ")]\n";
+   } else {
+      my $h = fork;
+      die "$cmd[0]: fork: $!\n" unless defined $h;
+      if (!$h) {
+	 exec { $cmd[0] } @cmd;
+	 die "$cmd[0]: exec: $!\n";
+      }
+      my $st = wait;
+      print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
+   }
+   my $article = parse_cached_post get_file_contents "$posts_cache/$$.tmp";
+   if ($article && defined $article->{'p'}) {
+      my $tmpname = "$posts_cache/$$.tmp";
+      my $newname = sprintf('%s/%s', $posts_cache, $article->{'p'});
+      print STDERR "Saving post as $newname...\n"; # XYZZY
+      rename $tmpname, $newname || warn "Cannot rename $tmpname to $newname: $!\n";
+   }
+   return $article;
+}
+
 sub decode_akimbo_rss_encoded_text ($) {
    my($s) = @_;
    $s =~ s/&#(\d+);/ chr($1); /sge;
@@ -129,48 +226,52 @@ sub decode_date ($) {
    my $time;
    my($year, $month, $day);
    my $sp = "(?:\\s| )";
-   if ($s =~ /^Sun(?:day)?,?\s+/i) {
-      ($s, $dow) = ($', 'U');
-   } elsif ($s =~ /^Mon(?:day)?,?\s+/i) {
-      ($s, $dow) = ($', 'M');
-   } elsif ($s =~ /^Tue(?:s(?:day)?)?,?\s+/i) {
-      ($s, $dow) = ($', 'T');
-   } elsif ($s =~ /^Wed(?:nes(?:day)?)?,?\s+/i) {
-      ($s, $dow) = ($', 'W');
-   } elsif ($s =~ /^Thu(?:r(?:s(?:day)?)?)?,?\s+/) {
-      ($s, $dow) = ($', 'R');
-   } elsif ($s =~ /^Fri(?:day)?,?\s+/i) {
-      ($s, $dow) = ($', 'M');
-   } elsif ($s =~ /^Sat(?:ur(?:day)?)?,?\s+/i) {
-      ($s, $dow) = ($', 'S');
+   local($', $&, $', $1, $2);
+   if ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
+      if ($s =~ /^Sun(?:day)?,?\s+/i) {
+	 ($s, $dow) = ($', 'U');
+      } elsif ($s =~ /^Mon(?:day)?,?\s+/i) {
+	 ($s, $dow) = ($', 'M');
+      } elsif ($s =~ /^Tue(?:s(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ($', 'T');
+      } elsif ($s =~ /^Wed(?:nes(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ($', 'W');
+      } elsif ($s =~ /^Thu(?:r(?:s(?:day)?)?)?,?\s+/) {
+	 ($s, $dow) = ($', 'R');
+      } elsif ($s =~ /^Fri(?:day)?,?\s+/i) {
+	 ($s, $dow) = ($', 'M');
+      } elsif ($s =~ /^Sat(?:ur(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ($', 'S');
+      }
+      $s =~ s/\s+(?:at|by)\s+(?=\d)/ /;
+      if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)$/i) {
+	 ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
+      } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)$/i) {
+	 ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+      }
+      $s =~ s/\s*[\.,\@]\s*$//; # must not do this until after we do a.m./p.m.
+      if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/) {
+	 ($year, $month, $day) = ($3, $2, $1);
+      } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/) {
+	 ($year, $month, $day) = ($3, $1, $2);
+      }
+      $month = 1 if $month =~ /^Jan(?:uary)?$/i;
+      $month = 2 if $month =~ /^Feb(?:ruary)?$/i;
+      $month = 3 if $month =~ /^Mar(?:ch)?$/i;
+      $month = 4 if $month =~ /^Apr(?:il)?$/i;
+      $month = 5 if $month =~ /^May$/i;
+      $month = 6 if $month =~ /^Jun(?:e)?$/i;
+      $month = 7 if $month =~ /^Jul(?:y)?$/i;
+      $month = 8 if $month =~ /^Aug(?:ust)?$/i;
+      $month = 9 if $month =~ /^Sep(?:t(?:ember)?)?$/i;
+      $month = 10 if $month =~ /^Oct(?:ober)?$/i;
+      $month = 11 if $month =~ /^Nov(?:ember)?$/i;
+      $month = 12 if $month =~ /^Dec(?:ember)?$/i;
+      warn "Warning: Cannot parse date \"$s\"\n" unless defined $year;
+      $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
+      $s .= "T$time" if defined $time;
+      #$s .= " ($dow)" if defined $dow;
    }
-   $s =~ s/\s+(?:at|by)\s+(?=\d)/ /;
-   if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)$/i) {
-      ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
-   } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)$/i) {
-      ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
-   }
-   $s =~ s/\s*\.$//;
-   if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/) {
-      ($year, $month, $day) = ($3, $2, $1);
-   } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/) {
-      ($year, $month, $day) = ($3, $1, $2);
-   }
-   $month = 1 if $month =~ /^Jan(?:uary)?$/i;
-   $month = 2 if $month =~ /^Feb(?:ruary)?$/i;
-   $month = 3 if $month =~ /^Mar(?:ch)?$/i;
-   $month = 4 if $month =~ /^Apr(?:il)?$/i;
-   $month = 5 if $month =~ /^May$/i;
-   $month = 6 if $month =~ /^Jun(?:e)?$/i;
-   $month = 7 if $month =~ /^Jul(?:y)?$/i;
-   $month = 8 if $month =~ /^Aug(?:ust)?$/i;
-   $month = 9 if $month =~ /^Sep(?:t(?:ember)?)?$/i;
-   $month = 10 if $month =~ /^Oct(?:ober)?$/i;
-   $month = 11 if $month =~ /^Nov(?:ember)?$/i;
-   $month = 12 if $month =~ /^Dec(?:ember)?$/i;
-   $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
-   $s .= "T$time" if defined $time;
-   #$s .= " ($dow)" if defined $dow;
    return $s;
 }
 
@@ -256,7 +357,8 @@ sub break_data_into_articles ($) {
    return $it;
 }
 
-sub analyze_data () {
+sub merge_data () {
+   my $posts = get_cached_posts;
    my $articles;
    my $h = opendir(DIR, $listings_cache);
    die "$listings_cache: opendir: $!\n" unless defined $h;
@@ -272,7 +374,19 @@ sub analyze_data () {
 	 }
       }
    }
+   for my $link (keys %$articles) {
+      if (!defined $posts->{$link}) {
+	 print STDERR "Need to fetch $link...\n";
+	 insert_random_delay;
+	 get_post $link;
+      }
+   }
    closedir DIR;
+   for my $link (keys %$posts) {
+      for my $key (keys %{$posts->{$link}}) {
+	 $articles->{$link}->{$key} = $posts->{$link}->{$key} unless defined $articles->{$link}->{$key}; # XXX title sometimes don't match (!)
+      }
+   }
    return $articles;
 }
 
@@ -288,9 +402,10 @@ sub display_listing ($) {
 
 GetOptions(
    'debug' => sub { $debug_p += 1; },
+   'dry-run|n' => \$dry_run_p,
    'get' => \$get_p,
 ) || exit(1);
 
 get_feed;
-my $data = analyze_data;
+my $data = merge_data;
 display_listing $data;
