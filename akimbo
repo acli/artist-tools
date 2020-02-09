@@ -250,7 +250,7 @@ sub decode_date ($) {
       } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	 ($s, $dow) = ("$`$'", 'S');
       }
-      $s =~ s/\s+(?:(?:at|by)\s+|between\s+d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
+      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
       $s =~ s/\s*\.\s*$//;
       if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
@@ -405,7 +405,9 @@ sub merge_data () {
    for my $link (keys %$articles) {
       my $article = $articles->{$link};
       my $deadlines = $article->{'deadline'};
-      $article->{'effective-deadline'} = !defined $deadlines? 'N/A': @$deadlines == 1? $deadlines->[0]: 'MULTIPLE';
+      $article->{'deadline'} = { map { $_ => $_ } @{$article->{'deadline'}} };	# deduplicate
+      $article->{'deadline'} = [ keys %{$article->{'deadline'}} ];		# convert back into array
+      $article->{'effective-deadline'} = !defined $deadlines? 'N/A': @$deadlines == 1? $deadlines->[0]: $deadlines->[0];
    }
    return $articles;
 }
@@ -417,6 +419,12 @@ sub display_listing ($) {
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       printf $fmt, $article->{'p'}, $article->{'effective-deadline'}, $article->{'title'};
+      my $deadlines = $article->{'deadline'};
+      if ($deadlines && @$deadlines > 1) {
+	 for (my $i = 1; $i < @$deadlines; $i += 1) {
+	    printf $fmt, '', $deadlines->[$i], '';
+	 }
+      }
    }
 }
 
