@@ -25,11 +25,20 @@ use vars qw( $get_p );
 use vars qw( $listings_cache );
 use vars qw( $posts_cache );
 use vars qw( $feed_url );
+use vars qw( $ua_identity );
+
+# START OF CONFIGURABLE OPTIONS
+# -----------------------------------------------------------------------------
 
 $listings_cache = 'listings';
 $posts_cache = 'posts';
 $feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff
 #$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
+
+$ua_identity = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)';
+
+# -----------------------------------------------------------------------------
+# END OF CONFIGURABLE OPTIONS
 
 sub insert_random_delay () {
    sleep(5 + rand 5);
@@ -54,7 +63,7 @@ sub get_feed () {
       print STDERR "get_feed: cache out of date, need to get new feed\n";
       my @cmd = (
 	 'wget',
-	 '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
+	 '-U', $ua_identity,
 	 '-O', "$listings_cache/$now",
 	 $feed_url,
       );
@@ -190,10 +199,11 @@ sub get_post ($) {
    my($link) = @_;
    my $now = strftime '%Y%m%d%H%M', localtime;
    my $ok = 0;
+   my $tmpname = "$posts_cache/$$.tmp";
    my @cmd = (
       'wget',
-      '-U', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)',
-      '-O', "$posts_cache/$$.tmp",
+      '-U', $ua_identity,
+      '-O', $tmpname,
       $link,
    );
    mkdir $posts_cache unless -d $posts_cache;
@@ -211,10 +221,11 @@ sub get_post ($) {
    }
    my $article = parse_cached_post get_file_contents "$posts_cache/$$.tmp";
    if ($article && defined $article->{'p'}) {
-      my $tmpname = "$posts_cache/$$.tmp";
       my $newname = sprintf('%s/%s', $posts_cache, $article->{'p'});
       print STDERR "Saving post as $newname...\n"; # XYZZY
       rename $tmpname, $newname || warn "Cannot rename $tmpname to $newname: $!\n";
+   } else {
+      die "Something is wrong...page ID not detected in page, please look at $tmpname to debug\n";
    }
    return $article;
 }
@@ -342,9 +353,9 @@ sub break_data_into_articles ($) {
 	       $state = 1;
 	    }
 	 } elsif ($state == 1) {
-	    if ($s =~ /<a href='.*?fwp_listing_type=\w+'[^<>]*>([^<>]+)<\/a>/) {
+	    if ($s =~ /<a href='.*?fwp_listing_type=(\w+)'[^<>]*>([^<>]+)<\/a>/) {
 	       # FIXME This should apparently be multi-valued because I got a type = Exhibitions from the Calls for Submissions listing (!)
-	       $node->{'class'} = $1;
+	       $node->{'type'} = $1;
 	       $state = 2;
 	    }
 	 } elsif ($state == 2) {
