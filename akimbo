@@ -235,32 +235,33 @@ sub decode_date ($) {
       } elsif ($s =~ /\s+M[DS]?T\b|\s+\([Mm]ountain\)/) {
 	 ($s, $tz) = ("$`$'", 'MT');
       }
-      if ($s =~ /^Sun(?:day)?,?\s+/i) {
-	 ($s, $dow) = ($', 'U');
-      } elsif ($s =~ /^Mon(?:day)?,?\s+/i) {
-	 ($s, $dow) = ($', 'M');
-      } elsif ($s =~ /^Tue(?:s(?:day)?)?,?\s+/i) {
-	 ($s, $dow) = ($', 'T');
-      } elsif ($s =~ /^Wed(?:nes(?:day)?)?,?\s+/i) {
-	 ($s, $dow) = ($', 'W');
-      } elsif ($s =~ /^Thu(?:r(?:s(?:day)?)?)?,?\s+/) {
-	 ($s, $dow) = ($', 'R');
-      } elsif ($s =~ /^Fri(?:day)?,?\s+/i) {
-	 ($s, $dow) = ($', 'M');
-      } elsif ($s =~ /^Sat(?:ur(?:day)?)?,?\s+/i) {
-	 ($s, $dow) = ($', 'S');
+      if ($s =~ /\bSun(?:day)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'U');
+      } elsif ($s =~ /\bMon(?:day)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'M');
+      } elsif ($s =~ /\bTue(?:s(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'T');
+      } elsif ($s =~ /\bWed(?:nes(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'W');
+      } elsif ($s =~ /\bThu(?:r(?:s(?:day)?)?)?,?\s+/) {
+	 ($s, $dow) = ("$`$'", 'R');
+      } elsif ($s =~ /\bFri(?:day)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'M');
+      } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
+	 ($s, $dow) = ("$`$'", 'S');
       }
-      $s =~ s/\s+(?:at|by)\s+(?=\d)/ /;
-      if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)$/i) {
-	 ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
-      } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)$/i) {
-	 ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+      $s =~ s/\s+(?:(?:at|by)\s+|between\s+d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
+      $s =~ s/\s*\.\s*$//;
+      if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
+	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
+      } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\b/i) {
+	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
-	 ($s, $time) = ($`, sprintf('%02d:%02d', $1 != 12 && $1, $2));
+	 ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
-	 ($s, $time) = ($`, sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+	 ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
       }
-      $s =~ s/\s*[\.,\@]\s*$//; # must not do this until after we do a.m./p.m.
+      $s =~ s/\s*[\.,\@]\s*$//;
       if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/i) {
 	 ($year, $month, $day) = ($3, $2, $1);
       } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/i) {
