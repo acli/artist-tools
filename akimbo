@@ -15,6 +15,7 @@ use feature "unicode_strings";
 use Getopt::Long;
 use Data::Dumper;
 use POSIX;
+use JSON::PP;
 
 use vars qw( $debug_p );
 use vars qw( $get_p );
@@ -48,6 +49,7 @@ sub get_feed () {
 	 '-O', "$scratch_dir/$now",
 	 'https://akimbo.ca/listings/?fwp_listing_type=calls',	# Calls only (don't bother with jobs, events, etc.)
       );
+      mkdir $scratch_dir unless -d $scratch_dir;
       my $h = fork;
       die "$cmd[0]: fork: $!\n" unless defined $h;
       if (!$h) {
@@ -57,6 +59,9 @@ sub get_feed () {
       my $st = wait;
       print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
    }
+}
+
+sub get_post ($) {
 }
 
 sub is_gzip ($) {
@@ -210,12 +215,13 @@ sub break_data_into_articles ($) {
 	    }
 	 } elsif ($state == 1) {
 	    if ($s =~ /<a href='.*?fwp_listing_type=\w+'[^<>]*>([^<>]+)<\/a>/) {
+	       # FIXME This should apparently be multi-valued because I got a type = Exhibitions from the Calls for Submissions listing (!)
 	       $node->{'class'} = $1;
 	       $state = 2;
 	    }
 	 } elsif ($state == 2) {
 	    if ($s =~ /<time\b[^<>]*?\bdatetime='([^'']+)'>([^<>]+)<\/time>/) {
-	       $node->{'pubDate'} = $1;
+	       $node->{'pubDate'} = decode_date $1;
 	       $state = 3;
 	    }
 	 } elsif ($state == 3) {
@@ -249,6 +255,7 @@ sub break_data_into_articles ($) {
 }
 
 sub analyze_data () {
+   my $articles;
    my $h = opendir(DIR, $scratch_dir);
    die "$scratch_dir: opendir: $!\n" unless defined $h;
    for (;;) {
@@ -256,10 +263,25 @@ sub analyze_data () {
    last unless defined $dirent;
       if (-f "$scratch_dir/$dirent") {
 	 my $data = get_file_contents "$scratch_dir/$dirent";
-	 my $articles = break_data_into_articles $data;
+	 for my $article (@{ break_data_into_articles $data }) {
+	    my $deadlines = $article->{'deadline'};
+	    $article->{'effective-deadline'} = !defined $deadlines? 'N/A': @$deadlines == 1? $deadlines->[0]: 'MULTIPLE';
+	    $articles->{$article->{'link'}} = $article;
+	 }
       }
    }
    closedir DIR;
+   return $articles;
+}
+
+sub display_listing ($) {
+   my($articles) = @_;
+   my $fmt = "%-25s %s\n";
+   printf $fmt, 'Deadline', 'Title';
+   for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
+      my $article = $articles->{$i};
+      printf "%-25s %s\n", $article->{'effective-deadline'}, $article->{'title'};
+   }
 }
 
 GetOptions(
@@ -268,4 +290,5 @@ GetOptions(
 ) || exit(1);
 
 get_feed;
-analyze_data;
+my $data = analyze_data;
+display_listing $data;
