@@ -499,7 +499,8 @@ sub merge_data () {
       if (!defined $posts->{$link}) {
 	 print STDERR "Need to fetch $link...\n";
 	 insert_random_delay;
-	 get_post $link;
+	 my $article = get_post $link;
+	 $posts->{$article->{'link'}} = $article;
       }
    }
    closedir DIR;
