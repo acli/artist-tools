@@ -32,12 +32,16 @@ Akimbo has an option to list only art calls.
 In theory we can poll this list and we’ll get 100% of the art calls and 100% of what we get will be art calls. 
 Unfortunately, in reality some calls are listed under other “types” such as learning experiences
 (this is often true for residencies)
-or just generic events.
+or just generic events (I’ve seen some that are government CFP’s for high-budget public art projects).
 As a result the script just polls the RSS feed, which contains all types of events.
 
 To reduce the amount of noise,
 all listings without a deadline
 are assumed to be non-calls and removed from the display unless you specify the `-A` (or `--almost-all`) option..
+
+Obviously, even with the filtering there will be some non-calls in the list.
+Most of these will be things like job postings
+or educational opportunities that aren’t residencies.
 
 Impact on server load
 =====================
