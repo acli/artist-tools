@@ -247,7 +247,6 @@ sub get_cached_posts () {
 	    my $config = read_ini_file "$posts_cache/$dirent.url";
 	    my $article = parse_cached_post get_file_contents "$posts_cache/$dirent";
 	    $posts->{$article->{'link'}} = $article;
-	    print STDERR Dumper($config) if defined $config;
 	    if ($config && defined $config->{''}->{'link'}) {
 	       # Sometimes the link (and title) in the index doesn't match the same in the actual post. This avoids duplicate wgets
 	       printf STDERR "get_cached_posts: found alias link(s): %s\n", join(' ', @{$config->{''}->{'link'}}) if $debug_p;
