@@ -336,9 +336,11 @@ sub decode_date ($;$) {
    my $s = $s0;
    local($', $&, $', $1, $2);
    if ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
-      if ($s =~ /\s+E[DS]?T\b|\s+\([Ee]astern\)/) {
+      if ($s =~ /\s+A[S]?T\b|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
+	 ($s, $tz) = ("$`$'", 'AT');
+      } elsif ($s =~ /\s+E[DS]?T\b|\s+\([Ee]astern\)|\s+[Ee]astern\s+time\b/) {
 	 ($s, $tz) = ("$`$'", 'ET');
-      } elsif ($s =~ /\s+M[DS]?T\b|\s+\([Mm]ountain\)/) {
+      } elsif ($s =~ /\s+M[DS]?T\b|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+time\b/) {
 	 ($s, $tz) = ("$`$'", 'MT');
       }
       if ($s =~ /\bSun(?:day)?,?\s+/i) {
@@ -366,11 +368,13 @@ sub decode_date ($;$) {
 	 ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
 	 ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+      } elsif ($s =~ /\s+(?:@|at)\s+midnight\b/ || $s =~ /^[Mm]idnight\s+/) {
+	 ($s, $time) = ("$`$'", '00:00');
       }
       $s =~ s/\s*[\.,\@]\s*$//;
-      if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+),?$sp+(\d{4})$/i) {
+      if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+)[,\/]?$sp+(\d{4})$/i) {
 	 ($year, $month, $day) = ($3, $2, $1);
-      } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?,?$sp+(\d{4})$/i) {
+      } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?[,\/]?$sp+(\d{4})$/i) {
 	 ($year, $month, $day) = ($3, $1, $2);
       } elsif ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+)$/i && defined $default_year) {
 	 ($year, $month, $day) = ($default_year, $2, $1);
