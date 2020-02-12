@@ -601,10 +601,12 @@ sub display_listing ($) {
 	 } elsif ($urgency == 1) {
 	    $urgency = 'tomorrow';
 	 }
-	 printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
-	 if ($deadlines && @$deadlines > 1) {
-	    for (my $i = 1; $i < @$deadlines; $i += 1) {
-	       printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
+	 if ($urgency > -7 || $almost_all_p || $all_p) {
+	    printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
+	    if ($deadlines && @$deadlines > 1) {
+	       for (my $i = 1; $i < @$deadlines; $i += 1) {
+		  printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
+	       }
 	    }
 	 }
       }
