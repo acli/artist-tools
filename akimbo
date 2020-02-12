@@ -243,9 +243,25 @@ sub get_cached_posts () {
       for (;;) {
 	 my $dirent = readdir DIR;
       last unless defined $dirent;
-	 if (-f "$posts_cache/$dirent") {
+	 if (-f "$posts_cache/$dirent" && $dirent !~ /\.url$/) {
+	    my $config = read_ini_file "$posts_cache/$dirent.url";
 	    my $article = parse_cached_post get_file_contents "$posts_cache/$dirent";
 	    $posts->{$article->{'link'}} = $article;
+	    print STDERR Dumper($config) if defined $config;
+	    if ($config && defined $config->{''}->{'link'}) {
+	       # Sometimes the link (and title) in the index doesn't match the same in the actual post. This avoids duplicate wgets
+	       printf STDERR "get_cached_posts: found alias link(s): %s\n", join(' ', @{$config->{''}->{'link'}}) if $debug_p;
+	       for my $link (@{$config->{''}->{'link'}}) {
+		  if (!defined $posts->{$link}) {
+		     $posts->{$link} = $article;
+		  } else {
+		     warn "get_cached_posts: warning: $dirent.url: Link $link already defined (ignored)\n";
+		  }
+	       }
+	    }
+	    printf STDERR "get_cached_posts: read %s -> %s from %s\n", $dirent, $article->{'link'} if $debug_p;
+	 } else {
+	    printf STDERR "get_cached_posts: ignoring %s\n", $dirent if $debug_p;
 	 }
       }
       closedir DIR;
@@ -282,6 +298,14 @@ sub get_post ($) {
       my $newname = sprintf('%s/%s', $posts_cache, $article->{'p'});
       print STDERR "Saving post as $newname...\n"; # XYZZY
       rename $tmpname, $newname || warn "Cannot rename $tmpname to $newname: $!\n";
+
+      # Sometimes the link (and title) in the index doesn't match the same in the actual post. This avoids duplicate wgets
+      if ($link ne $article->{'link'}) {
+	 open(OUTPUT, '>', $tmpname) || die "$tmpname: creat: $!\n";
+	 print OUTPUT "link=$link\n";
+	 close OUTPUT;
+	 rename $tmpname, "$newname.url" || warn "Cannot rename $tmpname to $newname.url: $!\n";
+      }
    } else {
       die "Something is wrong...page ID not detected in page, please look at $tmpname to debug\n";
    }
@@ -485,8 +509,12 @@ sub break_data_into_articles ($) {
 }
 
 sub merge_data () {
+
+   # Read cached posts
    my $posts = get_cached_posts;
    my $articles;
+
+   # Read cached index pages into articles list
    my $h = opendir(DIR, $listings_cache);
    die "$listings_cache: opendir: $!\n" unless defined $h;
    for (;;) {
@@ -499,6 +527,8 @@ sub merge_data () {
 	 }
       }
    }
+
+   # Checked if any posts in index pages aren't yet cached
    for my $link (keys %$articles) {
       if (!defined $posts->{$link}) {
 	 print STDERR "Need to fetch $link...\n";
@@ -509,7 +539,7 @@ sub merge_data () {
    }
    closedir DIR;
 
-   # Merge in individual posts
+   # Merge posts into articles list
    for my $link (keys %$posts) {
       for my $key (keys %{$posts->{$link}}) {
 	 $articles->{$link}->{$key} = $posts->{$link}->{$key} unless $key eq 'title'; # XXX title sometimes don't match (!)
