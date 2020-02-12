@@ -594,9 +594,13 @@ sub display_listing ($) {
       my $p = $article->{'p'};
       if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'} || $almost_all_p)) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
-	 $urgency = '(past)' if $urgency < 0;
-	 $urgency = 'TODAY' if $urgency == 0;
-	 $urgency = 'tomorrow' if $urgency == 1;
+	 if ($urgency < 0) {
+	    $urgency = '(past)';
+	 } elsif ($urgency == 0) {
+	    $urgency = 'TODAY';
+	 } elsif ($urgency == 1) {
+	    $urgency = 'tomorrow';
+	 }
 	 printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
 	 if ($deadlines && @$deadlines > 1) {
 	    for (my $i = 1; $i < @$deadlines; $i += 1) {
