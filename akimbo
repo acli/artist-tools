@@ -616,6 +616,7 @@ sub display_listing ($) {
    my($articles) = @_;
    my $config = read_ini_file $rc_path;
    my $fmt = "%-5.5s  %-19s  %-8s  %-5s  %s\n";
+   my %seen;
    printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
@@ -630,13 +631,14 @@ sub display_listing ($) {
 	 } elsif ($urgency == 1) {
 	    $urgency = 'tomorrow';
 	 }
-	 if ($urgency > -7 || $almost_all_p || $all_p) {
+	 if (($urgency > -7 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
 	    printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
 	    if ($deadlines && @$deadlines > 1) {
 	       for (my $i = 1; $i < @$deadlines; $i += 1) {
 		  printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
 	       }
 	    }
+	    $seen{$article->{'p'}} = 1 if $article->{'p'};
 	 }
       }
    }
