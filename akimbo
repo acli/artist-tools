@@ -41,8 +41,8 @@ $cache_root = "$ENV{HOME}/.cache/akimbo";
 $listings_cache = 'listings';
 $posts_cache = 'posts';
 
-$feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff
-#$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
+#$feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff - feed disappeared on 2020/02/14
+$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
 
 $ua_identity = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)';
 
@@ -108,6 +108,11 @@ sub get_feed () {
       my $dirent = readdir DIR;
    last unless defined $dirent;
       $ok = 1 if -f "$listings_cache/$dirent" && $dirent =~ /^\d{12}$/ && $dirent > $cutoff;
+      if ($ok && -z "$listings_cache/$dirent") {
+	 warn "get_feed: warning: removing empty file $dirent\n";
+	 unlink "$listings_cache/$dirent";
+	 $ok = 0;
+      }
    last if $ok;
    }
    closedir DIR;
@@ -293,7 +298,7 @@ sub get_post ($) {
       print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
    }
    my $article = parse_cached_post get_file_contents "$posts_cache/$$.tmp";
-   if ($article && defined $article->{'p'}) {
+   if ($article && %$article && defined $article->{'p'}) {
       my $newname = sprintf('%s/%s', $posts_cache, $article->{'p'});
       print STDERR "Saving post as $newname...\n"; # XYZZY
       rename $tmpname, $newname || warn "Cannot rename $tmpname to $newname: $!\n";
@@ -529,7 +534,11 @@ sub merge_data () {
 
    # Checked if any posts in index pages aren't yet cached
    for my $link (keys %$articles) {
-      if (!defined $posts->{$link}) {
+      if (!$link) {
+	 print STDERR "merge_data: article has no link: no link ", Dumper $articles->{$link} if $debug_p;
+      } elsif (defined $posts->{$link}) {
+	 print STDERR "merge_data: article already in posts database: $link\n" if $debug_p;
+      } else {
 	 print STDERR "Need to fetch $link...\n";
 	 insert_random_delay;
 	 my $article = get_post $link;
