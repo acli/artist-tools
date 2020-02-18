@@ -42,7 +42,8 @@ $listings_cache = 'listings';
 $posts_cache = 'posts';
 
 #$feed_url = 'https://akimbo.ca/listings/feed/';				# random bag of stuff - feed disappeared on 2020/02/14
-$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
+#$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
+$feed_url = 'https://akimbo.ca/listings/';
 
 $ua_identity = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)';
 
@@ -62,10 +63,11 @@ sub read_ini_file ($) {
       for (;;) {
 	 my $s = scalar <INPUT>;
       last unless defined $s;
+	 chomp $s;
 	 print STDERR "read_ini_file: s=($s)\n" if $debug_p > 1;
 	 if ($s =~ /^\s*(?:[;#]|\/\/)/) {
 	    ;
-	 } elsif ($s =~ /^\s*\[\s*([^\[\]]+)\s*\]\s$/) {
+	 } elsif ($s =~ /^\s*\[\s*([^\[\]]+)\s*\]\s*$/) {
 	    $section = $1;
 	 } elsif ($s =~ /^\s*((?:(?!\s*=).)+)\s*=\s*(.*?)\s*$/) {
 	    push @{$it->{$section}->{$1}}, $2;
