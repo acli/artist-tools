@@ -150,6 +150,7 @@ sub parse_cached_post ($) {
    my $state = 0;
    my $tmp = '';
    for my $s (@$s0) {
+      print STDERR "parse_cached_post: state=$state, s=($s)\n" if $debug_p > 1;
       if ($state == 0){
 	 if ($s =~ /^\s*<link rel="canonical" href="(.*?)"\s*\/>\s*$/) {
 	    $it->{'link'} = $1;
@@ -437,6 +438,7 @@ sub break_data_into_articles ($) {
    my $it;
    if ($data->[0] =~ /<\?xml/) {
       # RSS - In theory this is all good, but Akimbo doesn't encode real categories (e.g., calls) in the RSS, so it's of limited use
+      print STDERR "break_data_into_articles: analyzing XML index...\n" if $debug_p > 1;
       for my $s (split(/\s*<item>(?:\s*<\/item>\s*)?/s, join("\n", @$data))) {
 	 $s =~ s/^.*<channel>.*<item>$//s;			# first item
 	 $s =~ s/<\/item>\s*<\/channel>\s*<\/rss>\s*$//s;	# last item
@@ -460,6 +462,7 @@ sub break_data_into_articles ($) {
       }
    } else {
       # The assumption here is this is from an actual listing page
+      print STDERR "break_data_into_articles: analyzing HTML index...\n" if $debug_p > 1;
       # Calls only: https://akimbo.ca/listings/?fwp_listing_type=calls
       my $state = 0;
       my $node;
@@ -469,23 +472,21 @@ sub break_data_into_articles ($) {
 	 $node = undef;
       };
       for my $s (@$data) {
+	 print STDERR "break_data_into_articles: state=$state, s=($s)\n" if $debug_p > 1;
 	 if ($state == 0) {
-	    if ($s =~ /<div class='card-body'>/) {
+	    if ($s =~ /<div class=(['"])(?:(?!\1).)*\bcard-body\b(?:(?!\1).)*\1>/) {
 	       $state = 1;
 	    }
 	 } elsif ($state == 1) {
 	    if ($s =~ /<a href='.*?fwp_listing_type=(\w+)'[^<>]*>([^<>]+)<\/a>/) {
 	       # FIXME This should apparently be multi-valued because I got a type = Exhibitions from the Calls for Submissions listing (!)
+	       print STDERR "break_data_into_articles: got type\n" if $debug_p > 2;
 	       $node->{'type'} = $1;
-	       $state = 2;
-	    }
-	 } elsif ($state == 2) {
-	    if ($s =~ /<time\b[^<>]*?\bdatetime='([^'']+)'>([^<>]+)<\/time>/) {
+	    } elsif ($s =~ /<time\b[^<>]*?\bdatetime='([^'']+)'>([^<>]+)<\/time>/) {
+	       print STDERR "break_data_into_articles: got pubDate\n" if $debug_p > 2;
 	       $node->{'pubDate'} = decode_date $1;
-	       $state = 3;
-	    }
-	 } elsif ($state == 3) {
-	    if ($s =~ /<h3[^<>]+><a href='([^'']+)'[^<>]*>([^<>]+)<\/a><\/h3>/) {
+	    } elsif ($s =~ /<h3[^<>]+><a href='([^'']+)'[^<>]*>([^<>]+)<\/a><\/h3>/) {
+	       print STDERR "break_data_into_articles: got link, title\n" if $debug_p > 2;
 	       $node->{'link'} = $1;
 	       $node->{'title'} = decode_akimbo_rss_encoded_text $2;
 	       $state = 4;
@@ -496,9 +497,11 @@ sub break_data_into_articles ($) {
 	    }
 	 } elsif ($state == 5) {
 	    if ($s =~ /^\s*<div[^<>]*><a href='([^'']+)'[^<>]*>(.*?)<\/a><\/div>\s*$/) {
+	       print STDERR "break_data_into_articles: got venue-link, venue\n" if $debug_p > 2;
 	       $node->{'venue-link'} = $1;
 	       push @{$node->{'venue'}}, $2;
 	    } elsif ($s =~ /^\s*<div[^<>]*>(.*?)<\/div>\s*$/) {
+	       print STDERR "break_data_into_articles: got venue\n" if $debug_p > 2;
 	       push @{$node->{'venue'}}, $1;
 	    } elsif ($s =~ /^\s*<\/div>\s*$/) {
 	       $state = 4;
