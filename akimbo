@@ -204,10 +204,6 @@ sub parse_cached_post ($) {
       $it->{'img'} = $1;
       $tmp = $';
    }
-#  if ($tmp =~ /^\s*<(h[4])[^<>]*>((?:(?!<\/$1>).)+)<\/$1>\s*/s) {	# title is usually h4, but can be h1. Sigh....
-#     $candidate_subsection_title = sanitize_title($2);
-#     $tmp = $';
-#  }
    while ($tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg) {
       my $decoded_deadline = decode_date($2, $it->{'pubDate'});
       $it->{'deadline'}->{$decoded_deadline} = {'label' => $`, 'date' => $decoded_deadline};
