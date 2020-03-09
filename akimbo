@@ -366,7 +366,9 @@ sub decode_date ($;$) {
    my $sp = "(?:\\s| )";
    my $s = $s0;
    local($', $&, $', $1, $2);
-   if ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
+   if ($s =~ /^Ongoing$/) { # sigh...
+      ;
+   } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
       if ($s =~ /\s+A[S]?T\b|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
 	 ($s, $tz) = ("$`$'", 'AT');
       } elsif ($s =~ /\s+E[DS]?T\b|\s+\([Ee]astern\)|\s+[Ee]astern\s+time\b/) {
@@ -389,7 +391,7 @@ sub decode_date ($;$) {
       } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	 ($s, $dow) = ("$`$'", 'S');
       }
-      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)(?:\s*-\s*|\s*–\s*|\s*–\s*|\s+and\s+))(?=\d)/ /i;
+      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+))(?=\d)/ /i;
       $s =~ s/\s*\.\s*$//;
       if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
@@ -494,6 +496,8 @@ sub break_data_into_articles ($) {
 	 } elsif ($state == 4) {
 	    if ($s =~ /^\s*<div[^<>]*>Venue<\/div>\s*$/) {
 	       $state = 5;
+	    } elsif ($s =~ /<time class='timeago'/) { # XXX posting publication date - sorry, this is really a hack
+	       $state = 1;
 	    }
 	 } elsif ($state == 5) {
 	    if ($s =~ /^\s*<div[^<>]*><a href='([^'']+)'[^<>]*>(.*?)<\/a><\/div>\s*$/) {
@@ -594,6 +598,8 @@ sub determine_urgency ($) {
 	 }
 	 no integer;
 	 $urgency = ($t - $t0)/86400 + 0.5;
+      } elsif ($deadline =~ /^Ongoing$/) { # XXX sigh
+	 $urgency = "1 (Ongoing)";
       }
    last if defined $urgency && $urgency >= 0;
    }
