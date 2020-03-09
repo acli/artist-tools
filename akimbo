@@ -677,7 +677,7 @@ sub determine_urgency ($) {
 	    $t +=  5400 if $tz eq 'NT';
 	 }
 	 no integer;
-	 $urgency = ($t - $t0)/86400 + 0.5;
+	 $urgency = ($t - $t0)/86400;
       } elsif ($deadline =~ /^Ongoing$/) { # XXX sigh
 	 $urgency = "1 (Ongoing)";
       }
@@ -728,6 +728,7 @@ sub display_listing ($) {
       if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'} || $almost_all_p)) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
 	 my $display_urgency;;
+	 no integer;
 	 if ($urgency < 0) {
 	    $display_urgency = '(past)';
 	 } elsif ($urgency < 1) {
@@ -737,7 +738,6 @@ sub display_listing ($) {
 	 } elsif ($urgency < 14) {
 	    $display_urgency = sprintf('%d day%s', $urgency, $urgency == 1? '': 's');
 	 } else {
-	    no integer;
 	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
 	 if (($urgency > -3 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
