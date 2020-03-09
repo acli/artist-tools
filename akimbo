@@ -24,6 +24,7 @@ use vars qw( $debug_p );
 use vars qw( $dry_run_p );
 use vars qw( $almost_all_p );
 use vars qw( $all_p );
+use vars qw( $disable_multi_deadline_hack_p );
 
 use vars qw( $rc_path );
 use vars qw( $cache_root );
@@ -206,18 +207,23 @@ sub parse_cached_post ($) {
    }
    # Look for possible subevent then marshall deadline hash back into string form so that we don't break things =P
    for my $i (keys %{$it->{'deadline'}}) {
-      if ($it->{'deadline'}->{$i}->{'label'} =~ /<h4[^<>]*>((?:(?!<\/h4>).)+)<\/h4>(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<h4>).)*$/s) {
+      if ($it->{'deadline'}->{$i}->{'label'} =~ /<p\b[^<>]*>(?:<strong>)?Deadline\s+for\s+((?:(?!<\/p>).)+)(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<p\b[^<>]*>).)*$/si) {
+	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
+      } elsif ($it->{'deadline'}->{$i}->{'label'} =~ /<h4[^<>]*>((?:(?!<\/h4>).)+)<\/h4>(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<h4>).)*$/si) {
 	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
       } else {
 	 delete $it->{'deadline'}->{$i}->{'label'};
       }
    }
    # Look at the deadlines again. Delete all labels if we have just 1 deadline or if not one all deadlines have labels
-   if (1) {
+   if (keys %{$it->{'deadline'}} == 1 || join('', map { defined $it->{'deadline'}->{$_}->{'label'}? '': '1' } keys %{$it->{'deadline'}}) =~ /1/) {
+      for my $i (keys %{$it->{'deadline'}}) {
+	 delete $it->{'deadline'}->{$i}->{'label'};
+      }
    }
    # Marshall deadline hash back into string form so that we don't break things =P
    for my $i (keys %{$it->{'deadline'}}) {
-      if ($it->{'deadline'}->{$i}->{'label'} =~ /^(.*)$/s) {
+      if ($it->{'deadline'}->{$i}->{'label'} =~ /^(.+)$/s) {
 	 $it->{'deadline'}->{$i} = sprintf("%s\t%s", $it->{'deadline'}->{$i}->{'date'}, sanitize_title($1));
       } else {
 	 $it->{'deadline'}->{$i} = $it->{'deadline'}->{$i}->{'date'};
@@ -599,11 +605,45 @@ sub merge_data () {
       }
    }
 
+   # Go through the articles and check for multiple deadlines; if it looks like we know what the subevents are split the article =P
+   if (!$disable_multi_deadline_hack_p) {
+      my $new_articles = {};
+      for my $i (keys %$articles) {
+	 my $article = $articles->{$i};
+	 my $deadlines = $article->{'deadline'};
+	 if (join('', @$deadlines) =~ /\t/s) {
+	    my $new_article = {};
+	    my $j = 0;
+	    for my $deadline (@$deadlines) {
+	       my($date, $label) = ($1, $2) if $deadline =~ /^(.*?)\t(.*)$/;
+	       my $k = sprintf('%s\t#%s', $i, $date);
+	       for my $h (keys %$article) {
+		  if ($h eq 'p') {		# article ID
+		     $new_article->{$h} = sprintf('%s%s', $article->{$h}, chr(97 + $j));
+		  } elsif ($h eq 'title') {
+		     $new_article->{$h} = sprintf('%s – %s', $article->{$h}, $label);
+		  } elsif ($h eq 'deadline') {
+		     $new_article->{$h} = [$date];
+		  } elsif ($h eq 'link') {
+		     $new_article->{$h} = sprintf('%s#%s', $article->{$h}, chr(97 + $j));
+		  } else {
+		     $new_article->{$h} = $article->{$h};
+		  }
+	       }
+	       $new_articles->{$k} = {%$new_article}; # NOTE must dereference then construct, otherwise we reuse the same object -> chaos
+	       $j += 1;
+	    }
+	 } else {
+	    $new_articles->{$i} = $article;
+	 }
+      }
+      $articles = $new_articles;
+   }
+
    # Do a couple of things on the deadlines
    for my $link (keys %$articles) {
       my $article = $articles->{$link};
       my %deadlines = map { $_ => $_ } @{$article->{'deadline'}};
-      print STDERR Dumper \%deadlines;
 
       # If we find one deadline with a time zone code and another one without, remove the one without
       for my $deadline (keys %deadlines) {
@@ -650,6 +690,7 @@ sub format_deadline ($) {
       my($year, $month, $day, $hour, $minute, $second, $tz) = ($1, $2, $3, $4, $5, $6, $7);
       $deadline = sprintf($fmt, $year, $month, $day, (defined $hour? ($hour, ':', $minute): ('', '', '')), (defined $tz? $tz: ''));
    }
+   $deadline = $` if $disable_multi_deadline_hack_p && $deadline =~ /\t/; # remove marshalled label
    return $deadline;
 }
 
@@ -673,9 +714,10 @@ sub display_post ($$) {
 sub display_listing ($) {
    my($articles) = @_;
    my $config = read_ini_file $rc_path;
-   my $fmt = "%-5.5s  %-19s  %-8s  %-5s  %s\n";
+   my $fmt = "%-5.5s  %-21s  %-8s  %-6s  %s\n";
    my %seen;
    my @output;
+   # Create the output but don't show it yet
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
@@ -706,6 +748,7 @@ sub display_listing ($) {
 	 }
       }
    }
+   # If any output has actually been created, display it
    if (@output) {
       printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
       for my $s (sort { $a->[0] <=> $b->[0] } @output) {
@@ -719,6 +762,7 @@ GetOptions(
    'all|a' => \$all_p,
    'almost-all|A' => \$almost_all_p,
    'debug|d' => sub { $debug_p += 1; },
+   'disable-multi-deadline-hack' => \$disable_multi_deadline_hack_p,
    'dry-run|n' => \$dry_run_p,
 ) || exit(1);
 
