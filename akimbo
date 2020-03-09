@@ -632,7 +632,7 @@ sub display_listing ($) {
    my $config = read_ini_file $rc_path;
    my $fmt = "%-5.5s  %-19s  %-8s  %-5s  %s\n";
    my %seen;
-   printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
+   my @output;
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
@@ -653,14 +653,20 @@ sub display_listing ($) {
 	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
 	 if (($urgency > -7 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
-	    printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, $article->{'title'};
+	    push @output, [$urgency, sprintf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, $article->{'title'}];
 	    if ($deadlines && @$deadlines > 1) {
 	       for (my $i = 1; $i < @$deadlines; $i += 1) {
-		  printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
+		  $output[$#output]->[1] .= sprintf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
 	       }
 	    }
 	    $seen{$article->{'p'}} = 1 if $article->{'p'};
 	 }
+      }
+   }
+   if (@output) {
+      printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
+      for my $s (sort { $a->[0] <=> $b->[0] } @output) {
+	 print $s->[1];
       }
    }
 }
