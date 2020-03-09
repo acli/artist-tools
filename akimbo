@@ -658,7 +658,7 @@ sub display_listing ($) {
 	    no integer;
 	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
-	 if (($urgency > -7 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
+	 if (($urgency > -3 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
 	    push @output, [$urgency, sprintf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, $article->{'title'}];
 	    if ($deadlines && @$deadlines > 1) {
 	       for (my $i = 1; $i < @$deadlines; $i += 1) {
