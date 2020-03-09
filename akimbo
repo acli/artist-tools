@@ -100,6 +100,16 @@ sub fix_cache_paths () {
    }
 }
 
+sub sanitize_title ($) {
+   my($s) = @_;
+   $s =~ s/<[^<>]*>//sg;
+   $s =~ s/[\r\n]+/ /sg;
+   $s =~ s/&#8211;/–/sg;
+   $s =~ s/\s*\| Akimbo$//s;
+   $s =~ s/ opens today\s*!?\s*$//si;
+   return $s;
+}
+
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
    my $now = strftime '%Y%m%d%H%M', localtime;
@@ -156,6 +166,8 @@ sub parse_cached_post ($) {
 	    $it->{'link'} = $1;
 	 } elsif ($s =~ /^\s*<link rel='shortlink' href='.*?\?p=(\d+)'\s*\/>\s*$/) {
 	    $it->{'p'} = $1;
+	 } elsif ($s =~ /<title>((?:(?!<\/title>).)+)<\/title>/si) {	# title is usually h4, but can be h1. Save title just in case...
+	    $it->{'title'} = sanitize_title($1);
 	 } elsif ($s =~ /^\s*<div class='[^'']*\bcontent-block\b[^'']*'>\s*$/) {
 	    $state = 1;
 	 } elsif ($s =~ /<script type='application\/ld\+json'[^<>]*>.*?"datePublished":"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-\+]\d{2}:\d{2})"/) {
@@ -182,10 +194,10 @@ sub parse_cached_post ($) {
       $it->{'img'} = $1;
       $tmp = $';
    }
-   if ($tmp =~ /^\s*<h4>((?:(?!<\/h4>).)+)<\/h4>\s*/s) {
-      $it->{'title'} = $1;
-      $tmp = $';
-   }
+#  if ($tmp =~ /^\s*<(h[14])[^<>]*>((?:(?!<\/$1>).)+)<\/$1>\s*/s) {	# title is usually h4, but can be h1. Sigh....
+#     $it->{'title'} = sanitize_title($2);
+#     $tmp = $';
+#  }
    $it->{'deadline'}->{+decode_date($2, $it->{'pubDate'})} = decode_date($2, $it->{'pubDate'}) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
    $it->{'deadline'} = [sort values %{$it->{'deadline'}}];
    $it->{'content:encoded'} = decode_akimbo_rss_encoded_text($tmp);
@@ -366,7 +378,7 @@ sub decode_date ($;$) {
    my $sp = "(?:\\s| )";
    my $s = $s0;
    local($', $&, $', $1, $2);
-   if ($s =~ /^Ongoing$/) { # sigh...
+   if ($s =~ /^Ongoing$/) { # XXX sigh...
       ;
    } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
       if ($s =~ /\s+A[S]?T\b|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
@@ -559,7 +571,7 @@ sub merge_data () {
    # Merge posts into articles list
    for my $link (keys %$posts) {
       for my $key (keys %{$posts->{$link}}) {
-	 $articles->{$link}->{$key} = $posts->{$link}->{$key} unless $key eq 'title'; # XXX title sometimes don't match (!)
+	 $articles->{$link}->{$key} = $posts->{$link}->{$key};
       }
    }
 
