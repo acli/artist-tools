@@ -111,6 +111,13 @@ sub sanitize_title ($) {
    return $s;
 }
 
+sub sanitize_inline_deadline_label ($) {
+   my($s) = @_;
+   $s = sanitize_title($s);
+   $s =~ s/\s*:\s*$//si;
+   return $s;
+}
+
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
    my $now = strftime '%Y%m%d%H%M', localtime;
@@ -208,7 +215,7 @@ sub parse_cached_post ($) {
    # Look for possible subevent then marshall deadline hash back into string form so that we don't break things =P
    for my $i (keys %{$it->{'deadline'}}) {
       if ($it->{'deadline'}->{$i}->{'label'} =~ /<p\b[^<>]*>(?:<strong>)?Deadline\s+for\s+((?:(?!<\/p>).)+)(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<p\b[^<>]*>).)*$/si) {
-	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
+	 $it->{'deadline'}->{$i}->{'label'} = sanitize_inline_deadline_label($1);
       } elsif ($it->{'deadline'}->{$i}->{'label'} =~ /<h4[^<>]*>((?:(?!<\/h4>).)+)<\/h4>(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<h4>).)*$/si) {
 	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
       } else {
