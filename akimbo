@@ -159,8 +159,6 @@ sub parse_cached_post ($) {
    my $it;
    my $state = 0;
    my $tmp = '';
-   my @candidate_sections;
-   my $candidate_subsection_title;
    for my $s (@$s0) {
       print STDERR "parse_cached_post: state=$state, s=($s)\n" if $debug_p > 1;
       if ($state == 0){
@@ -196,33 +194,11 @@ sub parse_cached_post ($) {
       $it->{'img'} = $1;
       $tmp = $';
    }
-#  if ($tmp =~ /^\s*<(h[4])[^<>]*>((?:(?!<\/$1>).)+)<\/$1>\s*/s) {	# title is usually h4, but can be h1. Sigh....
-#     $candidate_subsection_title = sanitize_title($2);
+#  if ($tmp =~ /^\s*<(h[14])[^<>]*>((?:(?!<\/$1>).)+)<\/$1>\s*/s) {	# title is usually h4, but can be h1. Sigh....
+#     $it->{'title'} = sanitize_title($2);
 #     $tmp = $';
 #  }
-   while ($tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg) {
-      my $decoded_deadline = decode_date($2, $it->{'pubDate'});
-      $it->{'deadline'}->{$decoded_deadline} = {'label' => $`, 'date' => $decoded_deadline};
-   }
-   # Look for possible subevent then marshall deadline hash back into string form so that we don't break things =P
-   for my $i (keys %{$it->{'deadline'}}) {
-      if ($it->{'deadline'}->{$i}->{'label'} =~ /<h4[^<>]*>((?:(?!<\/h4>).)+)<\/h4>(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<h4>).)*$/s) {
-	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
-      } else {
-	 delete $it->{'deadline'}->{$i}->{'label'};
-      }
-   }
-   # Look at the deadlines again. Delete all labels if we have just 1 deadline or if not one all deadlines have labels
-   if (1) {
-   }
-   # Marshall deadline hash back into string form so that we don't break things =P
-   for my $i (keys %{$it->{'deadline'}}) {
-      if ($it->{'deadline'}->{$i}->{'label'} =~ /^(.*)$/s) {
-	 $it->{'deadline'}->{$i} = sprintf("%s\t%s", $it->{'deadline'}->{$i}->{'date'}, sanitize_title($1));
-      } else {
-	 $it->{'deadline'}->{$i} = $it->{'deadline'}->{$i}->{'date'};
-      }
-   }
+   $it->{'deadline'}->{+decode_date($2, $it->{'pubDate'})} = decode_date($2, $it->{'pubDate'}) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
    $it->{'deadline'} = [sort values %{$it->{'deadline'}}];
    $it->{'content:encoded'} = decode_akimbo_rss_encoded_text($tmp);
    return $it;
@@ -490,8 +466,8 @@ sub break_data_into_articles ($) {
 	    for my $field ('category') {
 	       push @{$node->{$field}}, decode_akimbo_rss_encoded_text $1 while $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/sg;
 	    }
-	    $node->{'deadline'}->{$2, $node->{'pubDate'}}->{'date'} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
-	    $node->{'deadline'} = [sort values %{$node->{'deadline'}->{'date'}}];
+	    $node->{'deadline'}->{$2, $node->{'pubDate'}} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+	    $node->{'deadline'} = [sort values %{$node->{'deadline'}}];
 	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
 	    print STDERR "DEBUG: ($s)\n" if $debug_p > 2;
 	    print STDERR Dumper($node) if $debug_p > 1;
@@ -603,7 +579,6 @@ sub merge_data () {
    for my $link (keys %$articles) {
       my $article = $articles->{$link};
       my %deadlines = map { $_ => $_ } @{$article->{'deadline'}};
-      print STDERR Dumper \%deadlines;
 
       # If we find one deadline with a time zone code and another one without, remove the one without
       for my $deadline (keys %deadlines) {
