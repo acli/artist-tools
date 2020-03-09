@@ -101,13 +101,28 @@ sub fix_cache_paths () {
    }
 }
 
-sub sanitize_title ($) {
-   my($s) = @_;
+sub sanitize_title ($;$) {
+   my($s, $deadlines) = @_;
+   local($_, $`, $&, $', $1, $2, $3);
    $s =~ s/<[^<>]*>//sg;
    $s =~ s/[\r\n]+/ /sg;
    $s =~ s/&#8211;/–/sg;
    $s =~ s/\s*\| Akimbo$//s;
    $s =~ s/ opens today\s*!?\s*$//si;
+
+   # Attempt to check if we can hack things off the end - this is a stupid HACK
+   if (defined $deadlines && ref $deadlines eq 'ARRAY') {
+      my $n = 0;
+      my $det = $s . '';
+      for my $i (@$deadlines) {
+	 my $re = $i =~ /\t/? $': $i;
+	 if ($det =~ /\s+$re\s*(?:\||$)/s) {
+	    $det = $` . $';
+	    $n += 1;
+	 }
+      }
+      $s = $det if $n == scalar @$deadlines;
+   }
    return $s;
 }
 
@@ -624,7 +639,7 @@ sub merge_data () {
 		  if ($h eq 'p') {		# article ID
 		     $new_article->{$h} = sprintf('%s%s', $article->{$h}, chr(97 + $j));
 		  } elsif ($h eq 'title') {
-		     $new_article->{$h} = sprintf('%s – %s', $article->{$h}, $label);
+		     $new_article->{$h} = sprintf('%s – %s', sanitize_title($article->{$h}, $deadlines), $label);
 		  } elsif ($h eq 'deadline') {
 		     $new_article->{$h} = [$date];
 		  } elsif ($h eq 'link') {	# link is used as a unique key so we must artificially make split keys
