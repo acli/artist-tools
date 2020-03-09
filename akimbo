@@ -627,7 +627,7 @@ sub merge_data () {
 		     $new_article->{$h} = sprintf('%s – %s', $article->{$h}, $label);
 		  } elsif ($h eq 'deadline') {
 		     $new_article->{$h} = [$date];
-		  } elsif ($h eq 'link') {
+		  } elsif ($h eq 'link') {	# link is used as a unique key so we must artificially make split keys
 		     $new_article->{$h} = sprintf('%s#%s', $article->{$h}, chr(97 + $j));
 		  } else {
 		     $new_article->{$h} = $article->{$h};
