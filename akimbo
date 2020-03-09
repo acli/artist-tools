@@ -24,6 +24,7 @@ use vars qw( $debug_p );
 use vars qw( $dry_run_p );
 use vars qw( $almost_all_p );
 use vars qw( $all_p );
+use vars qw( $disable_multi_deadline_hack_p );
 
 use vars qw( $rc_path );
 use vars qw( $cache_root );
@@ -110,6 +111,13 @@ sub sanitize_title ($) {
    return $s;
 }
 
+sub sanitize_inline_deadline_label ($) {
+   my($s) = @_;
+   $s = sanitize_title($s);
+   $s =~ s/\s*:\s*$//si;
+   return $s;
+}
+
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
    my $now = strftime '%Y%m%d%H%M', localtime;
@@ -159,6 +167,8 @@ sub parse_cached_post ($) {
    my $it;
    my $state = 0;
    my $tmp = '';
+   my @candidate_sections;
+   my $candidate_subsection_title;
    for my $s (@$s0) {
       print STDERR "parse_cached_post: state=$state, s=($s)\n" if $debug_p > 1;
       if ($state == 0){
@@ -194,11 +204,34 @@ sub parse_cached_post ($) {
       $it->{'img'} = $1;
       $tmp = $';
    }
-#  if ($tmp =~ /^\s*<(h[14])[^<>]*>((?:(?!<\/$1>).)+)<\/$1>\s*/s) {	# title is usually h4, but can be h1. Sigh....
-#     $it->{'title'} = sanitize_title($2);
-#     $tmp = $';
-#  }
-   $it->{'deadline'}->{+decode_date($2, $it->{'pubDate'})} = decode_date($2, $it->{'pubDate'}) while $tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+   while ($tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg) {
+      my $decoded_deadline = decode_date($2, $it->{'pubDate'});
+      $it->{'deadline'}->{$decoded_deadline} = {'label' => $`, 'date' => $decoded_deadline};
+   }
+   # Look for possible subevent then marshall deadline hash back into string form so that we don't break things =P
+   for my $i (keys %{$it->{'deadline'}}) {
+      if ($it->{'deadline'}->{$i}->{'label'} =~ /<p\b[^<>]*>(?:<strong>)?Deadline\s+for\s+((?:(?!<\/p>).)+)(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<p\b[^<>]*>).)*$/si) {
+	 $it->{'deadline'}->{$i}->{'label'} = sanitize_inline_deadline_label($1);
+      } elsif ($it->{'deadline'}->{$i}->{'label'} =~ /<h4[^<>]*>((?:(?!<\/h4>).)+)<\/h4>(?:(?!<[^<>]*\bclass="text-deadline"[^<>]*>|<h4>).)*$/si) {
+	 $it->{'deadline'}->{$i}->{'label'} = sanitize_title($1);
+      } else {
+	 delete $it->{'deadline'}->{$i}->{'label'};
+      }
+   }
+   # Look at the deadlines again. Delete all labels if we have just 1 deadline or if not one all deadlines have labels
+   if (keys %{$it->{'deadline'}} == 1 || join('', map { defined $it->{'deadline'}->{$_}->{'label'}? '': '1' } keys %{$it->{'deadline'}}) =~ /1/) {
+      for my $i (keys %{$it->{'deadline'}}) {
+	 delete $it->{'deadline'}->{$i}->{'label'};
+      }
+   }
+   # Marshall deadline hash back into string form so that we don't break things =P
+   for my $i (keys %{$it->{'deadline'}}) {
+      if ($it->{'deadline'}->{$i}->{'label'} =~ /^(.+)$/s) {
+	 $it->{'deadline'}->{$i} = sprintf("%s\t%s", $it->{'deadline'}->{$i}->{'date'}, sanitize_title($1));
+      } else {
+	 $it->{'deadline'}->{$i} = $it->{'deadline'}->{$i}->{'date'};
+      }
+   }
    $it->{'deadline'} = [sort values %{$it->{'deadline'}}];
    $it->{'content:encoded'} = decode_akimbo_rss_encoded_text($tmp);
    return $it;
@@ -466,8 +499,8 @@ sub break_data_into_articles ($) {
 	    for my $field ('category') {
 	       push @{$node->{$field}}, decode_akimbo_rss_encoded_text $1 while $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/sg;
 	    }
-	    $node->{'deadline'}->{$2, $node->{'pubDate'}} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
-	    $node->{'deadline'} = [sort values %{$node->{'deadline'}}];
+	    $node->{'deadline'}->{$2, $node->{'pubDate'}}->{'date'} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+	    $node->{'deadline'} = [sort values %{$node->{'deadline'}->{'date'}}];
 	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
 	    print STDERR "DEBUG: ($s)\n" if $debug_p > 2;
 	    print STDERR Dumper($node) if $debug_p > 1;
@@ -575,6 +608,41 @@ sub merge_data () {
       }
    }
 
+   # Go through the articles and check for multiple deadlines; if it looks like we know what the subevents are split the article =P
+   if (!$disable_multi_deadline_hack_p) {
+      my $new_articles = {};
+      for my $i (keys %$articles) {
+	 my $article = $articles->{$i};
+	 my $deadlines = $article->{'deadline'};
+	 if (join('', @$deadlines) =~ /\t/s) {
+	    my $new_article = {};
+	    my $j = 0;
+	    for my $deadline (@$deadlines) {
+	       my($date, $label) = ($1, $2) if $deadline =~ /^(.*?)\t(.*)$/;
+	       my $k = sprintf('%s\t#%s', $i, $date);
+	       for my $h (keys %$article) {
+		  if ($h eq 'p') {		# article ID
+		     $new_article->{$h} = sprintf('%s%s', $article->{$h}, chr(97 + $j));
+		  } elsif ($h eq 'title') {
+		     $new_article->{$h} = sprintf('%s – %s', $article->{$h}, $label);
+		  } elsif ($h eq 'deadline') {
+		     $new_article->{$h} = [$date];
+		  } elsif ($h eq 'link') {
+		     $new_article->{$h} = sprintf('%s#%s', $article->{$h}, chr(97 + $j));
+		  } else {
+		     $new_article->{$h} = $article->{$h};
+		  }
+	       }
+	       $new_articles->{$k} = {%$new_article}; # NOTE must dereference then construct, otherwise we reuse the same object -> chaos
+	       $j += 1;
+	    }
+	 } else {
+	    $new_articles->{$i} = $article;
+	 }
+      }
+      $articles = $new_articles;
+   }
+
    # Do a couple of things on the deadlines
    for my $link (keys %$articles) {
       my $article = $articles->{$link};
@@ -609,7 +677,7 @@ sub determine_urgency ($) {
 	    $t +=  5400 if $tz eq 'NT';
 	 }
 	 no integer;
-	 $urgency = ($t - $t0)/86400 + 0.5;
+	 $urgency = ($t - $t0)/86400;
       } elsif ($deadline =~ /^Ongoing$/) { # XXX sigh
 	 $urgency = "1 (Ongoing)";
       }
@@ -625,6 +693,7 @@ sub format_deadline ($) {
       my($year, $month, $day, $hour, $minute, $second, $tz) = ($1, $2, $3, $4, $5, $6, $7);
       $deadline = sprintf($fmt, $year, $month, $day, (defined $hour? ($hour, ':', $minute): ('', '', '')), (defined $tz? $tz: ''));
    }
+   $deadline = $` if $disable_multi_deadline_hack_p && $deadline =~ /\t/; # remove marshalled label
    return $deadline;
 }
 
@@ -648,9 +717,10 @@ sub display_post ($$) {
 sub display_listing ($) {
    my($articles) = @_;
    my $config = read_ini_file $rc_path;
-   my $fmt = "%-5.5s  %-19s  %-8s  %-5s  %s\n";
+   my $fmt = "%-5.5s  %-21s  %-8s  %-6s  %s\n";
    my %seen;
    my @output;
+   # Create the output but don't show it yet
    for my $i (sort { $articles->{$a}->{'effective-deadline'} cmp $articles->{$b}->{'effective-deadline'} } keys %$articles) {
       my $article = $articles->{$i};
       my $deadlines = $article->{'deadline'};
@@ -658,6 +728,7 @@ sub display_listing ($) {
       if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'} || $almost_all_p)) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
 	 my $display_urgency;;
+	 no integer;
 	 if ($urgency < 0) {
 	    $display_urgency = '(past)';
 	 } elsif ($urgency < 1) {
@@ -667,7 +738,6 @@ sub display_listing ($) {
 	 } elsif ($urgency < 14) {
 	    $display_urgency = sprintf('%d day%s', $urgency, $urgency == 1? '': 's');
 	 } else {
-	    no integer;
 	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
 	 if (($urgency > -3 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
@@ -681,6 +751,7 @@ sub display_listing ($) {
 	 }
       }
    }
+   # If any output has actually been created, display it
    if (@output) {
       printf $fmt, 'Type', 'Deadline', 'Urgency', 'ID', 'Title';
       for my $s (sort { $a->[0] <=> $b->[0] } @output) {
@@ -694,6 +765,7 @@ GetOptions(
    'all|a' => \$all_p,
    'almost-all|A' => \$almost_all_p,
    'debug|d' => sub { $debug_p += 1; },
+   'disable-multi-deadline-hack' => \$disable_multi_deadline_hack_p,
    'dry-run|n' => \$dry_run_p,
 ) || exit(1);
 
