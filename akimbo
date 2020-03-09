@@ -592,7 +592,8 @@ sub determine_urgency ($) {
 	    $t +=  3600 if $tz eq 'AT';	# FIXME this is wrong because AT has no DST
 	    $t +=  5400 if $tz eq 'NT';
 	 }
-	 $urgency = ($t - $t0 + 12*3600)/86400;
+	 no integer;
+	 $urgency = ($t - $t0)/86400 + 0.5;
       }
    last if defined $urgency && $urgency >= 0;
    }
@@ -638,15 +639,21 @@ sub display_listing ($) {
       my $p = $article->{'p'};
       if ((($deadlines && @$deadlines) && (!defined $config->{$p} || !defined $config->{$p}->{'ignore'} || $almost_all_p)) || $all_p) {
 	 my $urgency = determine_urgency $deadlines;
+	 my $display_urgency;;
 	 if ($urgency < 0) {
-	    $urgency = '(past)';
-	 } elsif ($urgency == 0) {
-	    $urgency = 'TODAY';
-	 } elsif ($urgency == 1) {
-	    $urgency = 'tomorrow';
+	    $display_urgency = '(past)';
+	 } elsif ($urgency < 1) {
+	    $display_urgency = 'TODAY';
+	 } elsif ($urgency < 2) {
+	    $display_urgency = 'tomorrow';
+	 } elsif ($urgency < 14) {
+	    $display_urgency = sprintf('%d day%s', $urgency, $urgency == 1? '': 's');
+	 } else {
+	    no integer;
+	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
 	 if (($urgency > -7 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
-	    printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $urgency, $article->{'p'}, $article->{'title'};
+	    printf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, $article->{'title'};
 	    if ($deadlines && @$deadlines > 1) {
 	       for (my $i = 1; $i < @$deadlines; $i += 1) {
 		  printf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
