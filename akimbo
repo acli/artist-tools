@@ -557,6 +557,7 @@ sub break_data_into_articles ($) {
 	    if ($s =~ /^\s*<div[^<>]*>Venue<\/div>\s*$/) {
 	       $state = 5;
 	    } elsif ($s =~ /<time class='timeago'/) { # XXX posting publication date - sorry, this is really a hack
+	       &$insert_node if defined $node;
 	       $state = 1;
 	    }
 	 } elsif ($state == 5) {
