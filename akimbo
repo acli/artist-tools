@@ -421,20 +421,28 @@ sub decode_date ($;$) {
    my $default_year = $1 if defined $pubdate && $pubdate =~ /^(\d{4})-/;
    my $tz;
    my $dow;
+   my $tbd;	# FIXME NOT USED
    my $time;
    my($year, $month, $day);
    my $sp = "(?:\\s| )";
    my $s = $s0;
    local($', $&, $', $1, $2);
-   if ($s =~ /^Ongoing$/) { # XXX sigh...
-      ;
+   $s =~ s/^(?:Application|Submission)s? (?:deadline is|must be received by) //;
+   $s =~ s/^CV’s reviewed starting //;
+   if ($s =~ /^(?:Ongoing|applications accepted on an ongoing basis\.)$/) { # XXX sigh...
+      $s = 'Ongoing';
    } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
-      if ($s =~ /\s+A[S]?T\b|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
+      if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
 	 ($s, $tz) = ("$`$'", 'AT');
-      } elsif ($s =~ /\s+E[DS]?T\b|\s+\([Ee]astern\)|\s+[Ee]astern\s+time\b/) {
+      } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\([Ee]astern\)|\s+[Ee]astern\s+[Tt]ime\b/) {
 	 ($s, $tz) = ("$`$'", 'ET');
-      } elsif ($s =~ /\s+M[DS]?T\b|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+time\b/) {
+      } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/) {
 	 ($s, $tz) = ("$`$'", 'MT');
+      } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/) {
+	 ($s, $tz) = ("$`$'", 'PT');
+      }
+      if ($s =~ /\(TBD\)/) {
+	 ($s, $tbd) = ("$`$'", 1);
       }
       if ($s =~ /\bSun(?:day)?,?\s+/i) {
 	 ($s, $dow) = ("$`$'", 'U');
@@ -451,20 +459,24 @@ sub decode_date ($;$) {
       } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	 ($s, $dow) = ("$`$'", 'S');
       }
-      $s =~ s/\s+(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+))(?=\d)/ /i;
+      $s =~ s/(?:^|\s+)(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+))(?=\d)/ /i;
       $s =~ s/\s*\.\s*$//;
-      if ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
+      if ($s =~ /(?:$sp+|$sp*@)(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
-      } elsif ($s =~ /$sp+(\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\b/i) {
+      } elsif ($s =~ /(?:$sp+|$sp*@)(\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
 	 ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
 	 ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
-      } elsif ($s =~ /\s+(?:@|at)\s+midnight\b/ || $s =~ /^[Mm]idnight\s+/) {
+      } elsif ($s =~ /(?:\s+(?:@|at)|,)\s+midnight\b/ || $s =~ /^[Mm]idnight\s+/) {
 	 ($s, $time) = ("$`$'", '00:00');
       }
-      $s =~ s/\s*[\.,\@]\s*$//;
+      $s =~ s/^\.\s*//;
+      $s =~ s/^(?:by|on)\s+//;
+      $s =~ s/\s*[\.,:\@]\s*$//;
+      $s =~ s/\s+(?:to):?$//;
+      $s =~ s/\s+$//;
       if ($s =~ /^(\d{1,2})(?:st|nd|rd|th)?$sp+([A-Z][A-Za-z]+)[,\/]?$sp+(\d{4})$/i) {
 	 ($year, $month, $day) = ($3, $2, $1);
       } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?[,\/]?$sp+(\d{4})$/i) {
@@ -473,19 +485,21 @@ sub decode_date ($;$) {
 	 ($year, $month, $day) = ($default_year, $2, $1);
       } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?$/i && defined $default_year) {
 	 ($year, $month, $day) = ($default_year, $1, $2);
+      } elsif ($s =~ /^(\d{1,2})$sp+([a-zéû]+)$sp+(\d{4})(?:(?:$sp+(?:-|–|—))?$sp+(\d{1,2})$sp*h(?:$sp*(\d{2}))?)?$/i) { # French
+	 ($year, $month, $day, $time) = ($3, $2, $1, ($4? sprintf('%02d:%02d', $4, $5): $time));
       }
-      $month = 1 if $month =~ /^Jan(?:uary)?$/i;
-      $month = 2 if $month =~ /^Feb(?:ruary)?$/i;
-      $month = 3 if $month =~ /^Mar(?:ch)?$/i;
-      $month = 4 if $month =~ /^Apr(?:il)?$/i;
-      $month = 5 if $month =~ /^May$/i;
-      $month = 6 if $month =~ /^Jun(?:e)?$/i;
-      $month = 7 if $month =~ /^Jul(?:y)?$/i;
-      $month = 8 if $month =~ /^Aug(?:ust)?$/i;
-      $month = 9 if $month =~ /^Sep(?:t(?:ember)?)?$/i;
-      $month = 10 if $month =~ /^Oct(?:ober)?$/i;
-      $month = 11 if $month =~ /^Nov(?:ember)?$/i;
-      $month = 12 if $month =~ /^Dec(?:ember)?$/i;
+      $month = 1 if $month =~ /^(?:Jan(?:uary)?|janvier)$/i;
+      $month = 2 if $month =~ /^(?:Feb(?:ruary)?|février)$/i;
+      $month = 3 if $month =~ /^(?:Mar(?:ch)?|mars)$/i;
+      $month = 4 if $month =~ /^(?:Apr(?:il)?|avril)$/i;
+      $month = 5 if $month =~ /^(?:May|mai)$/i;
+      $month = 6 if $month =~ /^(?:Jun(?:e)?|juin)$/i;
+      $month = 7 if $month =~ /^(?:Jul(?:y)?|juillet)$/i;
+      $month = 8 if $month =~ /^(?:Aug(?:ust)?|août)$/i;
+      $month = 9 if $month =~ /^(?:Sep(?:t(?:ember)?)?|septembre)$/i;
+      $month = 10 if $month =~ /^(?:Oct(?:ober)?|octobre)$/i;
+      $month = 11 if $month =~ /^(?:Nov(?:ember)?|novembre)$/i;
+      $month = 12 if $month =~ /^(?:Dec(?:ember)?|décembre)$/i;
       warn "Warning: Cannot parse date \"$s0\" (left: \"$s\")\n" unless defined $year;
       $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
       $s .= "T$time" if defined $time;
