@@ -617,19 +617,25 @@ sub merge_data () {
    }
 
    # Checked if any posts in index pages aren't yet cached
+   my @need_to_fetch;
    for my $link (keys %$articles) {
       if (!$link) {
 	 print STDERR "merge_data: article has no link: no link ", Dumper $articles->{$link} if $debug_p;
       } elsif (defined $posts->{$link}) {
 	 print STDERR "merge_data: article already in posts database: $link\n" if $debug_p;
       } else {
-	 print STDERR "Need to fetch $link...\n";
-	 insert_random_delay;
-	 my $article = get_post $link;
-	 $posts->{$article->{'link'}} = $article;
+	 print STDERR "Need to fetch $link", (defined $articles->{$link}->{'p'}? sprintf(' as %s', $articles->{$link}->{'p'}): ''), "...\n";
+	 push @need_to_fetch, $link;
       }
    }
    closedir DIR;
+
+   # Fetch all posts that need to be fetched
+   for my $link (@need_to_fetch) {
+      insert_random_delay;
+      my $article = get_post $link;
+      $posts->{$article->{'link'}} = $article;
+   }
 
    # Merge posts into articles list
    for my $link (keys %$posts) {
