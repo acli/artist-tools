@@ -691,6 +691,12 @@ sub merge_data () {
       }
       $articles->{$link}->{'deadline'} = [sort keys %deadlines];
 
+      # If we find one deadline with a time and another one without, remove the one without
+      for my $deadline (keys %deadlines) {
+	 delete $deadlines{$`} if $deadline =~ /T\d\d:\d\d/ && defined $deadlines{$`};
+      }
+      $articles->{$link}->{'deadline'} = [sort keys %deadlines];
+
       # For each set of deadlines, calculate an "effective deadline", for sorting
       $article->{'effective-deadline'} = !%deadlines? 'N/A': $articles->{$link}->{'deadline'}->[0];
    }
