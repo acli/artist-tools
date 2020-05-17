@@ -629,6 +629,7 @@ sub merge_data () {
       }
    }
    closedir DIR;
+   printf "Need to fetch %d post(s):\n", scalar @need_to_fetch if @need_to_fetch;
 
    # Fetch all posts that need to be fetched
    for my $link (@need_to_fetch) {
