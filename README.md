@@ -16,28 +16,30 @@ However, they do *try to* mark up deadlines with a CSS class `text-deadline` (us
 So we can examine the page and look for these marked-up text snippets.
 There are only two problems:
 
-The first is the dates are all in English.
-You have to parse the English to figure out what the actual date and time is,
-so obviously sometimes you’re not sure,
-and most of the time you have no idea what time zone is implied.
+First, the dates are all in English.
+You have to parse the English to figure out the actual date and time,
+so sometimes you’re not sure,
+and most of the time you don’t know the time zone.
 
-The second is *sometimes* there are deadlines that are *not* marked with the `text-deadline` class.
-This just looks like whoever entered the posting forgot their own house style.
-In this case there’s nothing we can do.
+Second, *sometimes* some deadlines are *not* marked with the `text-deadline` class.
+Maybe someone forgot to use house style,
+but there’s nothing we can do.
 
 What is treated as a call?
 =========================
 
 Akimbo has an option to list only art calls.
-In theory we can poll this list and we’ll get 100% of the art calls and 100% of what we get will be art calls. 
-Unfortunately, in reality some calls are listed under other “types” such as learning experiences
-(this is often true for residencies)
-or just generic events (I’ve seen some that are government CFP’s for high-budget public art projects).
-As a result the script just polls the RSS feed, which contains all types of events.
+In theory we can poll this list and we’ll get all art calls and all of what we get will be art calls. 
+In reality some calls are listed under, say, learning experiences
+(which is often the case for residencies)
+or generic events (for example, some government CFP’s for high-budget public art projects).
+So the script just polls the main page, which contains all types of events.
 
 To reduce the amount of noise,
+the script assumes
 all listings without a deadline
-are assumed to be non-calls and removed from the display unless you specify the `-A` (or `--almost-all`) option..
+to be non-calls
+these are removed from the display unless you specify the `-A` (or `--almost-all`) option..
 
 Obviously, even with the filtering there will be some non-calls in the list.
 Most of these will be things like job postings
