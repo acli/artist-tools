@@ -465,6 +465,8 @@ sub decode_date ($;$) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /(?:$sp+|$sp*@)(\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\b/i) {
 	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+      } elsif ($s =~ /$sp*\((\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\)/i) {
+	 ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
 	 ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
       } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|on)\s+)?/i) {
@@ -500,7 +502,7 @@ sub decode_date ($;$) {
       $month = 10 if $month =~ /^(?:Oct(?:ober)?|octobre)$/i;
       $month = 11 if $month =~ /^(?:Nov(?:ember)?|novembre)$/i;
       $month = 12 if $month =~ /^(?:Dec(?:ember)?|décembre)$/i;
-      warn "Warning: Cannot parse date \"$s0\" (left: \"$s\")\n" unless defined $year;
+      warn "Warning: Cannot parse date \"$s0\" (left: \"$s\"; default_year=$default_year)\n" unless defined $year;
       $s = sprintf('%04d-%02d-%02d', $year, $month, $day) if defined $year;
       $s .= "T$time" if defined $time;
       #$s .= " ($dow)" if defined $dow;
