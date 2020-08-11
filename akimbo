@@ -221,7 +221,7 @@ sub parse_cached_post ($) {
    }
    while ($tmp =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg) {
       my $decoded_deadline = decode_date($2, $it->{'pubDate'});
-      $it->{'deadline'}->{$decoded_deadline} = {'label' => $`, 'date' => $decoded_deadline};
+      $it->{'deadline'}->{$decoded_deadline} = {'label' => $`, 'date' => $decoded_deadline} if defined $decoded_deadline;
    }
    # Look for possible subevent then marshall deadline hash back into string form so that we don't break things =P
    for my $i (keys %{$it->{'deadline'}}) {
@@ -428,7 +428,9 @@ sub decode_date ($;$) {
    my $dash = '(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+)';
    my $s = $s0;
    my $not_a_date_p = $s =~ /^(?:by email only)$/i; # No, I'm not kidding you
-   unless ($not_a_date_p) {
+   if ($not_a_date_p) {
+      $s = undef;
+   } else {
       local($', $&, $', $1, $2);
       $s =~ s/^(?:Application|Submission)s? (?:deadline is|must be received by) //;
       $s =~ s/^CV’s reviewed starting //;
@@ -539,7 +541,10 @@ sub break_data_into_articles ($) {
 	    for my $field ('category') {
 	       push @{$node->{$field}}, decode_akimbo_rss_encoded_text $1 while $s =~ /<$field\b[^<>]*>(.*?)<\/$field>/sg;
 	    }
-	    $node->{'deadline'}->{$2, $node->{'pubDate'}}->{'date'} = decode_date($2, $node->{'pubDate'}) while $node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg;
+	    while ($node->{'content:encoded'} =~ /<(\w+)[^<>]*?class="text-deadline"[^<>]*>([^<>]+)<\/\1>/sg) {
+	       my $decoded_deadline = decode_date($2, $node->{'pubDate'});
+	       $node->{'deadline'}->{$2, $node->{'pubDate'}}->{'date'} = $decoded_deadline if defined $decoded_deadline;
+	    }
 	    $node->{'deadline'} = [sort values %{$node->{'deadline'}->{'date'}}];
 	    delete $node->{'deadline'} unless @{$node->{'deadline'}};
 	    print STDERR "DEBUG: ($s)\n" if $debug_p > 2;
