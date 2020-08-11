@@ -747,6 +747,16 @@ sub format_deadline ($) {
    return $deadline;
 }
 
+sub shorten_title ($) {
+   my($title) = @_;
+   if ($title =~ /^(?:Call\s+(?:for|to)\s+(?:Applicants|Applications|Artists|Submissions):\s+)(.*)$/i) {
+      $title = $1;
+   } elsif ($title =~ /^([^:]+)\s+is\s+hiring\s+[\w\s]+\s+positions?:\s+(.*)$/i) {
+      $title = $1;
+   }
+   return $title;
+}
+
 sub display_post ($$) {
    my($p, $articles) = @_;
    my $article;
@@ -791,7 +801,7 @@ sub display_listing ($) {
 	    $display_urgency = sprintf('%d week%s', $urgency/7, $urgency/7 == 1? '': 's');
 	 }
 	 if (($urgency > -3 || $almost_all_p || $all_p) && !defined $seen{$article->{'p'}}) {
-	    push @output, [$urgency, sprintf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, $article->{'title'}];
+	    push @output, [$urgency, sprintf $fmt, $article->{'type'}, format_deadline $article->{'effective-deadline'}, $display_urgency, $article->{'p'}, shorten_title $article->{'title'}];
 	    if ($deadlines && @$deadlines > 1) {
 	       for (my $i = 1; $i < @$deadlines; $i += 1) {
 		  $output[$#output]->[1] .= sprintf $fmt, '', format_deadline $deadlines->[$i], '', '', '';
