@@ -425,6 +425,7 @@ sub decode_date ($;$) {
    my $time;
    my($year, $month, $day);
    my $sp = "(?:\\s| )";
+   my $dash = '(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+)';
    my $s = $s0;
    my $not_a_date_p = $s =~ /^(?:by email only)$/i; # No, I'm not kidding you
    unless ($not_a_date_p) {
@@ -461,8 +462,11 @@ sub decode_date ($;$) {
 	 } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	    ($s, $dow) = ("$`$'", 'S');
 	 }
-	 $s =~ s/(?:^|\s+)(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?(?:\s*-\s*|\s*–\s*|\s*–\s*|\s*\&#8211;\s*|\s+and\s+))(?=\d)/ /i;
+	 $s =~ s/(?:^|\s+)(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?$dash)(?=\d)/ /i;
 	 $s =~ s/\s*\.\s*$//;
+	 if ($s =~ /^(?:[A-Z][a-z]+$sp+\d{1,2},$sp+\d{1,2}(?::\d\d)?(?:$sp*[ap]\.?m\.?)?)$sp+$dash$sp+([A-Z][a-z]+$sp+\d{1,2},$sp+\d{1,2}(?::\d\d)?(?:$sp*[ap]\.?m\.?)?)$/) { # two date/time ranges?
+	    $s = $1;
+	 }
 	 if ($s =~ /(?:$sp+|$sp*@)(\d+)(?::(\d\d))?$sp*(?:a\.m|AM)\b/i) {
 	    ($s, $time) = ("$`$'", sprintf('%02d:%02d', $1 != 12 && $1, $2));
 	 } elsif ($s =~ /(?:$sp+|$sp*@)(\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\b/i) {
@@ -491,7 +495,7 @@ sub decode_date ($;$) {
 	    ($year, $month, $day) = ($default_year, $2, $1);
 	 } elsif ($s =~ /^([A-Z][A-Za-z]+)$sp+(\d{1,2})(?:st|nd|rd|th)?$/i && defined $default_year) {
 	    ($year, $month, $day) = ($default_year, $1, $2);
-	 } elsif ($s =~ /^(\d{1,2})$sp+([a-zéû]+)$sp+(\d{4})(?:(?:$sp+(?:-|–|—))?$sp+(\d{1,2})$sp*h(?:$sp*(\d{2}))?)?$/i) { # French
+	 } elsif ($s =~ /^(\d{1,2})$sp+([a-zéû]+)$sp+(\d{4})(?:(?:$sp+$dash)?$sp+(\d{1,2})$sp*h(?:$sp*(\d{2}))?)?$/i) { # French
 	    ($year, $month, $day, $time) = ($3, $2, $1, ($4? sprintf('%02d:%02d', $4, $5): $time));
 	 }
 	 $month = 1 if $month =~ /^(?:Jan(?:uary)?|janvier)$/i;
