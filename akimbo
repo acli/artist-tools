@@ -758,7 +758,7 @@ sub format_deadline ($) {
 
 sub shorten_title ($) {
    my($title) = @_;
-   if ($title =~ /^(?:Call\s+(?:for|to)\s+(?:Applicants|Applications|Artists|Submissions):\s+)(.*)$/i) {
+   if ($title =~ /^(?:Call\s+(?:for|to)\s+(?:Applicants|Applications|Artists|Artwork|Submissions):\s+)(.*)$/i) {
       $title = $1;
    } elsif ($title =~ /^([^:]+)\s+is\s+hiring\s+[\w\s]+\s+positions?:\s+(.*)$/i) {
       $title = $1;
