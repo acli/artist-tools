@@ -1,4 +1,4 @@
-bin_targets=akimbo
+bin_targets=akimbo collate
 
 install: $(addprefix $(HOME)/bin/,$(bin_targets))
 
