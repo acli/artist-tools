@@ -10,8 +10,11 @@ use integer;
 use Getopt::Long;
 use POSIX;
 
+use Text::Roman qw( :all );
+
 use vars qw( $sigsize $global_npages );
 use vars qw( $ignore_cover );
+use vars qw( $prelims );
 use vars qw( $qpdf );
 use vars qw( $verbose $debug $dry_run );
 
@@ -45,6 +48,17 @@ sub get_number_of_pages ($) {
    } else {
       exec { $cmdline[0] } @cmdline;
       die "$0: $filename: exec: $!\n";
+   }
+   return $it;
+}
+
+sub folio ($) {
+   my($p) = @_;
+   my $it;
+   if ($p > $prelims) {
+      $it = $p - $prelims;
+   } else {
+      $it = lc int2roman $p; # we're in prelims, so convert to roman numerals
    }
    return $it;
 }
@@ -85,10 +99,10 @@ sub gen_collation (;$) {
 	 }
 	 printf "sp.%d\t", $sheet;
 	 if ($odd) {
-	    printf "FRONT:\tACTUAL\t%d\t%d\tPDF\t%d\t%d", $q, $p, $q + $ignore_front, $p + $ignore_front;
+	    printf "FRONT:\tACTUAL\t%s\t%s\tPDF\t%d\t%d", folio $q, folio $p, $q + $ignore_front, $p + $ignore_front;
 	    push @cmdline, ($q + $ignore_front, $p + $ignore_front);
 	 } else {
-	    printf "BACK:\tACTUAL\t%d\t%d\tPDF\t%d\t%d", $p, $q, $p + $ignore_front, $q + $ignore_front;
+	    printf "BACK:\tACTUAL\t%s\t%s\tPDF\t%d\t%d", folio $p, folio $q, $p + $ignore_front, $q + $ignore_front;
 	    push @cmdline, ($p + $ignore_front, $q + $ignore_front);
 	 }
 	 printf "\t(spread %d)\n", $spread; # repeat info for an easier read
@@ -115,8 +129,9 @@ sub usage (;$) {
    print $h <<EOF;
 Usage: $0 [OPTIONS...] [FILE]
 
-   -s, --signature-size=PAGES    calculate using a signature size of PAGES
    -n, --number-of-pages=PAGES   calculate for specified number of PAGES
+   -p, --prelims=PAGES           adjust for specified number of prelim PAGES
+   -s, --signature-size=PAGES    calculate using a signature size of PAGES
    -v, --verbose                 explain what's being done
        --ignore-cover            subtract 4 from number of pages
        --qpdf                    use qpdf(1) to output a collated PDF
@@ -131,6 +146,7 @@ GetOptions(
    'sigsize|sig-size|signature-size=i' => \$sigsize,
    'ignore-cover' => \$ignore_cover,
    'n|number-of-pages=i' => \$global_npages,
+   'p|prelims=i' => \$prelims,
    'qpdf' => \$qpdf,
    'v|verbose' => \$verbose,
    'help' => \&usage,
