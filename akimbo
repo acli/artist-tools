@@ -189,7 +189,7 @@ sub parse_cached_post ($) {
       if ($state == 0){
 	 if ($s =~ /^\s*<link rel="canonical" href="(.*?)"\s*\/>\s*$/) {
 	    $it->{'link'} = $1;
-	 } elsif ($s =~ /^\s*<link rel=(['"])shortlink\1 href='.*?\?p=(\d+)'\s*\/>\s*$/) {
+	 } elsif ($s =~ /<link rel=(['"])shortlink\1 href='.*?\?p=(\d+)'\s*\/>/) {
 	    $it->{'p'} = $2;
 	 } elsif ($s =~ /<title>((?:(?!<\/title>).)+)<\/title>/si) {	# title is usually h4, but can be h1. Save title just in case...
 	    $it->{'title'} = sanitize_title($1);
