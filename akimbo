@@ -439,11 +439,11 @@ sub decode_date ($;$) {
       } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
 	 if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
 	    ($s, $tz) = ("$`$'", 'AT');
-	 } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\([Ee]astern\)|\s+[Ee]astern\s+[Tt]ime\b/) {
+	 } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\([Ee]astern\)|\s+[Ee]astern\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'ET');
-	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/) {
+	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'MT');
-	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/) {
+	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'PT');
 	 }
 	 if ($s =~ /\(TBD\)/) {
@@ -464,7 +464,7 @@ sub decode_date ($;$) {
 	 } elsif ($s =~ /\bSat(?:ur(?:day)?)?,?\s+/i) {
 	    ($s, $dow) = ("$`$'", 'S');
 	 }
-	 $s =~ s/(?:^|\s+)(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?$dash)(?=\d)/ /i;
+	 $s =~ s/(?:^|\.?\s+)(?:(?:@|at|by)\s+|between\s+\d{1,2}(?::\d\d)?\s*(?:[ap]\.m\.|[AP]M)?$dash)(?=\d)/ /i;
 	 $s =~ s/\s*\.\s*$//;
 	 if ($s =~ /^(?:[A-Z][a-z]+$sp+\d{1,2},$sp+\d{1,2}(?::\d\d)?(?:$sp*[ap]\.?m\.?)?)$sp+$dash$sp+([A-Z][a-z]+$sp+\d{1,2},$sp+\d{1,2}(?::\d\d)?(?:$sp*[ap]\.?m\.?)?)$/) { # two date/time ranges?
 	    $s = $1;
