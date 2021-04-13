@@ -434,7 +434,7 @@ sub decode_date ($;$) {
       local($', $&, $', $1, $2);
       $s =~ s/^(?:Application|Submission)s? (?:deadline is|must be received by) //;
       $s =~ s/^CV’s reviewed starting //;
-      if ($s =~ /^(?:Ongoing|applications accepted on an ongoing basis\.)$/) { # XXX sigh...
+      if ($s =~ /^(?:Ongoing(?: application cycle)?|applications accepted on an ongoing basis\.)$/i) { # XXX sigh...
 	 $s = 'Ongoing';
       } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
 	 if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
@@ -480,7 +480,7 @@ sub decode_date ($;$) {
 	    ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
 	 } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
 	    ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
-	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+midnight\b/ || $s =~ /^[Mm]idnight\s+/) {
+	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+midnight\b/i || $s =~ /^[Mm]idnight\s+/i) {
 	    ($s, $time) = ("$`$'", '00:00');
 	 }
 	 $s =~ s/^\.\s*//;
