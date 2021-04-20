@@ -46,7 +46,7 @@ $posts_cache = 'posts';
 #$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
 $feed_url = 'https://akimbo.ca/listings/';
 
-$ua_identity = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.17) Gecko/20080915 Camino/1.6.4 (MultiLang) (like Firefox/2.0.0.17)';
+$ua_identity = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36';
 
 # -----------------------------------------------------------------------------
 # END OF CONFIGURABLE OPTIONS
@@ -159,6 +159,7 @@ sub get_feed () {
 	 'wget',
 	 '-U', $ua_identity,
 	 '-O', "$listings_cache/$now",
+	 ($debug_p? '-d': ()),
 	 $feed_url,
       );
       mkdir $listings_cache unless -d $listings_cache;
@@ -345,6 +346,7 @@ sub get_post ($) {
       'wget',
       '-U', $ua_identity,
       '-O', $tmpname,
+      ($debug_p? '-d': ()),
       $link,
    );
    mkdir $posts_cache unless -d $posts_cache;
