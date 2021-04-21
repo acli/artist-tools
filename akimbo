@@ -107,6 +107,7 @@ sub sanitize_title ($;$) {
    $s =~ s/<[^<>]*>//sg;
    $s =~ s/[\r\n]+/ /sg;
    $s =~ s/&#8211;/–/sg;
+   $s =~ s/&amp;/\&/sg;
    $s =~ s/\s*\| Akimbo$//s;
    $s =~ s/ opens today\s*!?\s*$//si;
 
@@ -412,6 +413,7 @@ sub convert_to_plain_text ($;$) {
 
 sub decode_akimbo_rss_encoded_text ($) {
    my($s) = @_;
+   local($_, $`, $&, $', $1, $2, $3);
    $s =~ s/&#(\d+);/ chr($1); /sge;
    $s =~ s/&amp;/\&/sg;
    $s = $1 if $s =~ /^<!\[CDATA\[(.*?)\]\]>$/s;
