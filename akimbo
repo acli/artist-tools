@@ -2,7 +2,7 @@
 # vim: set sw=3 ai sm:
 
 # Script to display Akimbo listings which might be calls for submissions; listings are sorted by deadline
-# Copyright ©2020 by Ambrose Li
+# Copyright ©2020–2021 by Ambrose Li
 
 use strict;
 use integer;
@@ -490,7 +490,7 @@ sub decode_date ($;$) {
 	 $s =~ s/\s*[\.,:\@]\s*$//;
 	 $s =~ s/\s+(?:to):?$//;
 	 $s =~ s/\s+$//;
-	 if ($s =~ /^(\d{1,2})(?:st|nd|rd|th|er|e)?$sp+([A-Z][A-Za-zéû]+\.?)[,\/]?$sp+(\d{4})$/i) {
+	 if ($s =~ /^(?:le\s+)?(\d{1,2})(?:st|nd|rd|th|er|e)?$sp+([A-Z][A-Za-zéû]+\.?)[,\/]?$sp+(\d{4})$/i) {
 	    ($year, $month, $day) = ($3, $2, $1);
 	 } elsif ($s =~ /^([A-Z][A-Za-z]+\.?)$sp+(\d{1,2})(?:st|nd|rd|th)?[,\/]?$sp+(\d{4})$/i) {
 	    ($year, $month, $day) = ($3, $1, $2);
