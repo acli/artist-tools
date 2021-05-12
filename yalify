@@ -16,11 +16,16 @@
 
 # see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
 # THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
-use v5.14; # //u modifier
+#use v5.14; # //u modifier
 use utf8;
 use open qw( :encoding(UTF-8) :std );
 use charnames qw( :full :short );
 use feature "unicode_strings";
+
+use Getopt::Long;
+
+use vars qw( $use_macrons_p );
+$use_macrons_p = 1;
 
 use vars qw( %initials %finals );
 %initials = (
@@ -112,7 +117,7 @@ sub yalify_syllable ($) {
       my $root = $finals{$2};
       my $tone = $3;
       my($initial_vowel, $other_vowels, $final) = ($1, $2, $3) if $root =~ /^(\w)(\w*)(.*)/;
-      my $mod1 = $tone == 1? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": $tone == 4? "\x{300}": '';
+      my $mod1 = ($tone == 1 && $use_macrons_p)? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": ($tone == 1 || $tone == 4)? "\x{300}": '';
       my $mod2 = 'h' if $tone > 3;
       $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final;
       $it = ucfirst $it if $capped_p;
@@ -133,5 +138,9 @@ sub yalify ($) {
    return $it;
 }
 
+GetOptions(
+   'disable-macrons'	=> sub { $use_macrons_p = 0; },
+   'enable-macrons'	=> \$use_macrons_p,
+) || exit(1);
 
 printf "%s\n", yalify(join(' ', @ARGV));
