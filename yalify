@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+# vi: set sw=3 ai sm:
+# Written on May 12, 2021 by Ambrose Li for project 116
+# © 2021 by Ambrose Li
+
+# This script takes a Jyutping pronunciation on the command line
+# and converts it to the corresponding Yale spelling. The Yale
+# spelling is output to standard output.
+
+# Only regular numerals are currently supported; superscripted
+# numerals, subscripted numerals and prefixed spacing diacritics
+# will all produce incorrect results.
+
+# Reference:
+# https://en.wikipedia.org/wiki/Yale_romanization_of_Cantonese
+
+# see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
+# THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
+use v5.14; # //u modifier
+use utf8;
+use open qw( :encoding(UTF-8) :std );
+use charnames qw( :full :short );
+use feature "unicode_strings";
+
+use vars qw( %initials %finals );
+%initials = (
+   '' => '',
+   'b' => 'b',
+   'p' => 'p',
+   'm' => 'm',
+   'f' => 'f',
+   'd' => 'd',
+   't' => 't',
+   'n' => 'n',
+   'l' => 'l',
+   'g' => 'g',
+   'k' => 'k',
+   'ng' => 'ng',
+   'h' => 'h',
+   'gw' => 'gw',
+   'kw' => 'kw',
+   'w' => 'w',
+   'z' => 'j',
+   'c' => 'ch',
+   's' => 's',
+   'j' => 'y',
+);
+%finals = (
+   'aa' => 'a',
+   'aai' => 'aai',
+   'aau' => 'aau',
+   'aam' => 'aam',
+   'aan' => 'aan',
+   'aang' => 'aang',
+   'aap' => 'aap',
+   'aat' => 'aat',
+   'aak' => 'aak',
+   'ai' => 'ai',
+   'au' => 'au',
+   'am' => 'am',
+   'an' => 'an',
+   'ang' => 'ang',
+   'ap' => 'ap',
+   'at' => 'at',
+   'ak' => 'ak',
+   'e' => 'e',
+   'ei', => 'ei',
+   'eng' => 'eng',
+   'ek' => 'ek',
+   'i' => 'i',
+   'iu' => 'iu',
+   'im' => 'im',
+   'in' => 'in',
+   'ing' => 'ing',
+   'ip' => 'ip',
+   'it' => 'it',
+   'ik' => 'ik',
+   'o' => 'o',
+   'oi' => 'oi',
+   'ou' => 'ou',
+   'on' => 'on',
+   'ong' => 'ong',
+   'ot' => 'ot',
+   'ok' => 'ok',
+   'u' => 'u',
+   'ui' => 'ui',
+   'un' => 'un',
+   'ung' => 'ung',
+   'ut' => 'ut',
+   'uk' => 'uk',
+   'oe' => 'eu',
+   'eoi' => 'eui',
+   'eon' => 'eun',
+   'oeng' => 'eung',
+   'eot' => 'eut',
+   'oek' => 'euk',
+   'yu' => 'yu',
+   'yun' => 'yun',
+   'yut' => 'yut',
+   'm' => 'm',
+   'ng' => 'ng',
+);
+
+sub yalify_syllable ($) {
+   my($s) = @_;
+   my $it;
+   my $s1 = lc $s;
+   my $all_caps_p = 1 if $s eq uc $s;
+   my $capped_p = 1 if $s eq ucfirst $s1;
+   if ($s1 =~ /^((?!ng(?:\d|$))[bcdfghjklmnpstwz]+)?([a-z]+)(\d)?$/ && defined $initials{$1} && defined $finals{$2}) {
+      $it = $initials{$1};
+      my $root = $finals{$2};
+      my $tone = $3;
+      my($initial_vowel, $other_vowels, $final) = ($1, $2, $3) if $root =~ /^(\w)(\w*)(.*)/;
+      my $mod1 = $tone == 1? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": $tone == 4? "\x{300}": '';
+      my $mod2 = 'h' if $tone > 3;
+      $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final;
+      $it = ucfirst $it if $capped_p;
+      $it = uc $it if $all_caps_p;
+   } else {
+      $it = $s;
+   }
+   return $it;
+}
+
+sub yalify ($) {
+   my($s) = @_;
+   my $it;
+   for my $t (split(/\s+|(?<=\d)(?=[a-zA-Z])/, $s)) {
+      $it .= ' ' if defined $it;
+      $it .= yalify_syllable($t);
+   }
+   return $it;
+}
+
+
+printf "%s\n", yalify(join(' ', @ARGV));
