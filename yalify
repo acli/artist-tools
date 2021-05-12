@@ -24,7 +24,8 @@ use feature "unicode_strings";
 
 use Getopt::Long;
 
-use vars qw( $use_macrons_p );
+use vars qw( $use_dotted_i_p $use_macrons_p );
+$use_dotted_i_p = 0;
 $use_macrons_p = 1;
 
 use vars qw( %initials %finals );
@@ -122,6 +123,9 @@ sub yalify_syllable ($) {
       $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final;
       $it = ucfirst $it if $capped_p;
       $it = uc $it if $all_caps_p;
+      if ($use_dotted_i_p) {
+	 $it =~ s/I/İ/g;
+      }
    } else {
       $it = $s;
    }
@@ -139,8 +143,10 @@ sub yalify ($) {
 }
 
 GetOptions(
-   'disable-macrons'	=> sub { $use_macrons_p = 0; },
-   'enable-macrons'	=> \$use_macrons_p,
+   'disable-dotted-i|without-dotted-i'	=> sub { $use_dotted_i_p = 0; },
+   'disable-macrons|without-macrons'	=> sub { $use_macrons_p = 0; },
+   'enable-dotted-i|with-dotted-i'	=> \$use_dotted_i_p,
+   'enable-macrons|with-macrons'	=> \$use_macrons_p,
 ) || exit(1);
 
 printf "%s\n", yalify(join(' ', @ARGV));
