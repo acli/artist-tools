@@ -116,7 +116,7 @@ sub yalify_syllable ($) {
       $it = $initials{$1};
       my $root = $finals{$2};
       my $tone = $3;
-      my($initial_vowel, $other_vowels, $final) = ($1, $2, $3) if $root =~ /^(\w)(\w*)(.*)/;
+      my($initial_vowel, $other_vowels, $final) = ($1, $2, $3) if $root =~ /^(\w)([aeiou]*)(.*)/;
       my $mod1 = ($tone == 1 && $use_macrons_p)? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": ($tone == 1 || $tone == 4)? "\x{300}": '';
       my $mod2 = 'h' if $tone > 3;
       $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final;
