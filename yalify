@@ -122,6 +122,7 @@ sub yalify_syllable_real ($$$$$$) {
    my $mod1 = ($tone == 1 && $use_macrons_p)? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": ($tone == 1 || $tone == 4)? "\x{300}": '';
    my $mod2 = 'h' if $tone > 3;
    my $it;
+   $initial_vowel = '' if $initial_vowel eq 'y' && $other_vowels =~ /^y/; # avoid yyu
    if ($use_dotted_i_p && (!$tone || $tone == 3 || $tone == 6) && ($all_caps_p)) {
       $initial_vowel =~ s/(?<=i)/\x{307}/g;
    }
