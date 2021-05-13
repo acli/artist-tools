@@ -122,11 +122,11 @@ sub yalify_syllable_real ($$$$$$) {
    my $mod1 = ($tone == 1 && $use_macrons_p)? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": ($tone == 1 || $tone == 4)? "\x{300}": '';
    my $mod2 = 'h' if $tone > 3;
    my $it;
-   $initial_vowel = '' if $initial_vowel eq 'y' && $other_vowels =~ /^y/; # avoid yyu
    if ($use_dotted_i_p && (!$tone || $tone == 3 || $tone == 6) && ($all_caps_p)) {
       $initial_vowel =~ s/(?<=i)/\x{307}/g;
    }
-   $it = $initial_consonant . $1 . $mod1 . $2 . $other_vowels . $mod2 . $final . $punctuation if $initial_vowel =~ /^(\w)(\w*)$/;
+   $it .= $initial_consonant if !($initial_consonant eq 'y' && $initial_vowel =~ /^y/);
+   $it .= $1 . $mod1 . $2 . $other_vowels . $mod2 . $final . $punctuation if $initial_vowel =~ /^(\w)(\w*)$/;
    $it = ucfirst $it if $capped_p;
    $it = uc $it if $all_caps_p;
    printf STDERR "[(%s) (%s) %s (%s) %s %s] => (%s)\n", $initial_consonant, $root, ($tone? $tone: 'null'), $punctuation, ($capped_p? 'true': 'false'), ($all_caps_p? 'true': 'false'), $it if $verbose_p;
