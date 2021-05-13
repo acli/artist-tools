@@ -1,15 +1,15 @@
 #!/usr/bin/perl
 # vi: set sw=3 ai sm:
 # Written on May 12, 2021 by Ambrose Li for project 116
+# Last update May 13, 2021
 # © 2021 by Ambrose Li
 
 # This script takes a Jyutping pronunciation on the command line
 # and converts it to the corresponding Yale spelling. The Yale
 # spelling is output to standard output.
 
-# Only regular numerals are currently supported; superscripted
-# numerals, subscripted numerals and prefixed spacing diacritics
-# will all produce incorrect results.
+# Only numerals for tones are currently supported; prefixed
+# spacing diacritics will produce incorrect results.
 
 # Reference:
 # https://en.wikipedia.org/wiki/Yale_romanization_of_Cantonese
