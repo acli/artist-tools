@@ -28,6 +28,9 @@ use vars qw( $use_dotted_i_p $use_macrons_p );
 $use_dotted_i_p = 0;
 $use_macrons_p = 1;
 
+use vars qw( $appName );
+$appName = $1 if $0 =~ /([^\/]+$)/;
+
 use vars qw( %initials %finals );
 %initials = (
    '' => '',
@@ -148,7 +151,7 @@ sub show_usage (;$) {
    my($status) = @_;
    my $h = $status? *STDERR: *STDOUT;
    print $h <<EOF;
-Usage: yalify [OPTION]... JYUTPING...
+Usage: $appName [OPTION]... JYUTPING...
 Converts Jyutping to Yale spellings.
 
   --disable-dotted-i  always use regular i (default)
