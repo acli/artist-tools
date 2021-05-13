@@ -113,18 +113,19 @@ sub yalify_syllable ($) {
    my $s1 = lc $s;
    my $all_caps_p = 1 if $s eq uc $s;
    my $capped_p = 1 if $s eq ucfirst $s1;
-   if ($s1 =~ /^((?!ng(?:\d|$))[bcdfghjklmnpstwz]+)?([a-z]+)(\d)?$/ && defined $initials{$1} && defined $finals{$2}) {
+   if ($s1 =~ /^((?!ng(?:\d|$))[bcdfghjklmnpstwz]+)?([a-z]+)(\d)?(\W+)?$/ && defined $initials{$1} && defined $finals{$2}) {
       $it = $initials{$1};
       my $root = $finals{$2};
       my $tone = $3;
+      my $punctuation = $4;
       my($initial_vowel, $other_vowels, $final) = ($1, $2, $3) if $root =~ /^(\w)([aeiou]*)(.*)/;
       my $mod1 = ($tone == 1 && $use_macrons_p)? "\x{304}": ($tone == 2 || $tone == 5)? "\x{301}": ($tone == 1 || $tone == 4)? "\x{300}": '';
       my $mod2 = 'h' if $tone > 3;
       if ($use_dotted_i_p && (!$tone || $tone == 3 || $tone == 6) && ($all_caps_p)) {
 	 $initial_vowel =~ s/(?<=i)/\x{307}/g;
-	 $other_vowels =~ s/(?<=i)/\x{307}/g;
+	 #$other_vowels =~ s/(?<=i)/\x{307}/g;
       }
-      $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final;
+      $it .= $initial_vowel . $mod1 . $other_vowels . $mod2 . $final . $punctuation;
       $it = ucfirst $it if $capped_p;
       $it = uc $it if $all_caps_p;
    } else {
@@ -143,11 +144,34 @@ sub yalify ($) {
    return $it;
 }
 
+sub show_usage (;$) {
+   my($status) = @_;
+   my $h = $status? *STDERR: *STDOUT;
+   print $h <<EOF;
+Usage: yalify [OPTION]... JYUTPING...
+Converts Jyutping to Yale spellings.
+
+  --disable-dotted-i  always use regular i (default)
+  --disable-macrons   use grave accent for first tone
+  --enable-dotted-i   use dotted capital i for third and sixth tones
+  --enable-macrons    use macron for first tone (default)
+  --help              display this help and exit
+
+Jyutping spellings can be given with or without tones, but tones must
+be given in regular numerals. Neither superscripted nor subscripted
+numerals are supported.
+
+Report bugs to ambrose.li\@gmail.com.
+EOF
+   exit $status;
+}
+
 GetOptions(
    'disable-dotted-i|without-dotted-i'	=> sub { $use_dotted_i_p = 0; },
    'disable-macrons|without-macrons'	=> sub { $use_macrons_p = 0; },
    'enable-dotted-i|with-dotted-i'	=> \$use_dotted_i_p,
    'enable-macrons|with-macrons'	=> \$use_macrons_p,
+   'help'				=> \&show_usage,
 ) || exit(1);
 
 printf "%s\n", yalify(join(' ', @ARGV));
