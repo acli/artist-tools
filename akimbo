@@ -447,6 +447,8 @@ sub decode_date ($;$) {
 	    ($s, $tz) = ("$`$'", 'ET');
 	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'MT');
+	 } elsif ($s =~ /\s+N[DS]?T\b|\.?\s*\(N[DS]?T\)|\s+\([Nn]cewfoundland\)|\s+[Nn]ewfoundland\s+[Tt]ime\b/i) {
+	    ($s, $tz) = ("$`$'", 'NT');
 	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'PT');
 	 }
@@ -480,10 +482,12 @@ sub decode_date ($;$) {
 	    ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
 	 } elsif ($s =~ /$sp*\((\d+)(?::(\d\d))?$sp*(?:p\.m|PM)\)/i) {
 	    ($s, $time) = ("$`$'", sprintf('%02d:%02d', ($1 % 12) + 12, $2));
-	 } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
+	 } elsif ($s =~ /^(\d+)(?::(\d\d)(?::(\d\d))?)?$sp*(?:a\.m\.|AM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
 	    ($s, $time) = ($', sprintf('%02d:%02d', $1 != 12 && $1, $2));
-	 } elsif ($s =~ /^(\d+)(?::(\d\d))?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
+	    $time .= sprintf(':%02d', $3) if defined $3;
+	 } elsif ($s =~ /^(\d+)(?::(\d\d)(?::(\d\d))?)?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
 	    ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
+	    $time .= sprintf(':%02d', $3) if defined $3;
 	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+midnight\b/i || $s =~ /^[Mm]idnight\s+/i) {
 	    ($s, $time) = ("$`$'", '00:00');
 	 }
@@ -735,6 +739,7 @@ sub determine_urgency ($) {
 	 # XXX Adjust for time zone differences =P
 	 if (defined $tz) {
 	    $t -= 10800 if $tz eq 'PT';
+	    $t -=  7200 if $tz eq 'MT';
 	    $t -=  7200 if $tz eq 'MT';
 	    $t -=  3600 if $tz eq 'CT';
 	    $t +=  3600 if $tz eq 'AT';	# FIXME this is wrong because AT has no DST
