@@ -17,3 +17,8 @@ so you can check your work.
 
 Requires [Text::Roman](https://metacpan.org/pod/Text::Roman).
 
+### yalify
+
+Converts Jyutping spellings into Yale spellings.
+I needed this for a project because I was not (and still am not) familiar with the Yale system
+and Yale spellings for Cantonese are difficult to type even on Linux.
