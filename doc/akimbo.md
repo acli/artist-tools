@@ -40,8 +40,8 @@ So the script just polls the main page, which contains all types of events.
 To reduce the amount of noise,
 the script assumes
 all listings without a deadline
-to be non-calls
-these are removed from the display unless you specify the `-A` (or `--almost-all`) option..
+to be non-calls.
+These are removed from the display unless you specify the `-A` (or `--almost-all`) option..
 
 Obviously, even with the filtering there will be some non-calls in the list.
 Most of these will be things like job postings
