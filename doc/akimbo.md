@@ -3,21 +3,23 @@ a list of calls for submissions, together with their indicated deadlines.
 The calls are sorted by deadline,
 so the most urgent calls are listed first.
 
-This script was written mainly because it’s very difficult to figure out what the deadlines are using Akimbo’s interface.
+This script was written mainly because it’s very difficult to figure out what the deadlines are using Akimbo’s interface
+(which is pretty much just an unmodded WordPress theme).
 It is also impossible to filter out listings that are past their deadlines using their UI.
 
 How do I know the deadlines?
 ============================
 
-If you’ve ever looked at Akimbo’s RSS feed or given some thought to what fields are on their posting pages,
+If you’ve ever looked at Akimbo’s RSS feed (when it still existed)
+or given some thought to what fields are on their posting pages,
 you know there’s no deadline field.
 
 However, they do *try to* mark up deadlines with a CSS class `text-deadline` (usually with `<span class="text-deadline">`).
 So we can examine the page and look for these marked-up text snippets.
 There are only two problems:
 
-First, the dates are all in English.
-You have to parse the English to figure out the actual date and time,
+First, the dates are all in English or French.
+You have to parse the English (or French) to figure out the actual date and time,
 so sometimes you’re not sure,
 and most of the time you don’t know the time zone.
 
@@ -60,7 +62,7 @@ Details of the calls (including deadlines)
 require loading individual posts
 (just like we have to control-click each post to open individual posts on a graphical web browser),
 but these loads are always accompanied by a delay to further reduce server load.
-Posts are cached so every post will only be loaded once unless their URL changes.
+Posts are cached so every post will only be loaded once unless their URL’s change.
 
 Bugs
 ====
