@@ -20,8 +20,8 @@ Requires [Text::Roman](https://metacpan.org/pod/Text::Roman).
 ### yalify
 
 Converts [Jyutping](https://en.wikipedia.org/wiki/Jyutping) spellings,
-which is more well-known in Hong Kong,
+which are more well-known in Hong Kong,
 into [Yale](https://en.wikipedia.org/wiki/Yale_romanization_of_Cantonese) spellings,
-which I believe is probably still more well-known in North America.
+which I believe are probably still more well-known in North America.
 I needed this for a project because I was not (and still am not) familiar with the Yale system
 and Yale spellings for Cantonese are difficult to type even on Linux.
