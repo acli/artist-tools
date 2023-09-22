@@ -485,7 +485,7 @@ sub decode_date ($;$) {
 	    ($s, $tz) = ("$`$'", 'ET');
 	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'MT');
-	 } elsif ($s =~ /\s+N[DS]?T\b|\.?\s*\(N[DS]?T\)|\s+\([Nn]cewfoundland\)|\s+[Nn]ewfoundland\s+[Tt]ime\b/i) {
+	 } elsif ($s =~ /\s+N[DS]?T\b|\.?\s*\(N[DS]?T\)|\s+\([Nn]ewfoundland(?:(?:\s+Daylight)?\s+Time)?\)|\s+[Nn]ewfoundland\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'NT');
 	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/i) {
 	    ($s, $tz) = ("$`$'", 'PT');
