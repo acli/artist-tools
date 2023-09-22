@@ -46,7 +46,7 @@ $posts_cache = 'posts';
 #$feed_url = 'https://akimbo.ca/listings/?fwp_listing_type=calls';	# calls only - in theory
 $feed_url = 'https://akimbo.ca/listings/';
 
-$ua_identity = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36';
+$ua_identity = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.106 Safari/537.36';
 
 # -----------------------------------------------------------------------------
 # END OF CONFIGURABLE OPTIONS
@@ -134,6 +134,17 @@ sub sanitize_inline_deadline_label ($) {
    return $s;
 }
 
+sub findfirst_current ($) {
+   my($s) = @_;
+   my $it;
+   for my $dir (split(/:/, $ENV{'PATH'})) {
+      my $candidate = "$dir/$s";
+      $it = $candidate if -f $candidate && -x $candidate;
+   last if defined $it;
+   }
+   return $it;
+}
+
 sub get_feed () {
    my $cutoff = strftime '%Y%m%d%H%M', localtime(time - 3600);
    my $now = strftime '%Y%m%d%H%M', localtime;
@@ -156,10 +167,26 @@ sub get_feed () {
       print STDERR "get_feed: cache is still valid\n" if $debug_p;
    } else {
       print STDERR "get_feed: cache out of date, need to get new feed\n";
-      my @cmd = (
+      # Real browsers
+      my $w3m = findfirst_current 'w3m';
+      # Page grabbing tools
+      my $curl = findfirst_current 'curl';
+      my $wget = findfirst_current 'wget';
+      my @cmd = $w3m? (
+	 $w3m,
+	 '-I', 'UTF-8',
+	 '-O', 'UTF-8',
+	 '-dump_source',
+	 $feed_url,
+      ): $curl? (
+	 $curl,
+	 '-A', $ua_identity,
+	 ($debug_p? '-v': ()),
+	 $feed_url,
+      ): (
 	 'wget',
 	 '-U', $ua_identity,
-	 '-O', "$listings_cache/$now",
+	 '-O', '-',
 	 ($debug_p? '-d': ()),
 	 $feed_url,
       );
@@ -167,14 +194,25 @@ sub get_feed () {
       if ($dry_run_p) {
 	 print STDERR "Pretending to execute command: [(", join('\051 \050', @cmd), ")]\n";
       } else {
-	 my $h = fork;
+	 my $h = open(INPUT, '-|');
 	 die "$cmd[0]: fork: $!\n" unless defined $h;
 	 if (!$h) {
 	    exec { $cmd[0] } @cmd;
 	    die "$cmd[0]: exec: $!\n";
 	 }
-	 my $st = wait;
-	 print STDERR "get_feed: command: [(", join('\051 \050', @cmd), ")] returned $st\n" if $debug_p;
+	 my $data;
+	 for (;;) {
+	    my $s = scalar <INPUT>;
+	 last unless defined $s;
+	    $data .= $s;
+	 }
+	 close INPUT;
+	 if ($data =~ /\S/s) {
+	    my $output = "$listings_cache/$now";
+	    open(OUTPUT, '>', $output) or die "$output: $!\n";
+	    print OUTPUT $data;
+	    close OUTPUT;
+	 }
       }
    }
 }
@@ -633,10 +671,18 @@ sub merge_data () {
    for (;;) {
       my $dirent = readdir DIR;
    last unless defined $dirent;
-      if (-f "$listings_cache/$dirent") {
-	 my $data = get_file_contents "$listings_cache/$dirent";
-	 for my $article (@{ break_data_into_articles $data }) {
-	    $articles->{$article->{'link'}} = $article;
+      my $input = "$listings_cache/$dirent";
+      if (-f $input) {
+	 if (-z $input) {
+	    print STDERR "merge_data: $input: removing empty file\n" if $debug_p;
+	    unlink $input;
+	 } else {
+	    my $data = get_file_contents "$listings_cache/$dirent";
+	    if (defined $data) {
+	       for my $article (@{ break_data_into_articles $data }) {
+		  $articles->{$article->{'link'}} = $article;
+	       }
+	    }
 	 }
       }
    }
