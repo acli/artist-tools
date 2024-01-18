@@ -478,7 +478,10 @@ sub decode_date ($;$) {
       $s =~ s/^CV’s reviewed starting //;
       if ($s =~ /^(?:Ongoing(?: application cycle)?|applications accepted on an ongoing basis\.)$/i) { # XXX sigh...
 	 $s = 'Ongoing';
+      } elsif ($s =~ /^(?:Open until filled|Until position is filled)$/i) { # XXX sigh...
+	 $s = 'Until filled';
       } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
+	 # NOTE: If you add a new timezone, you need to modify determine_urgency
 	 if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\(Atlantic\)|\s+Atlantic\s+time\b/) {
 	    ($s, $tz) = ("$`$'", 'AT');
 	 } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\(Eastern\)|\s+Eastern\s+Time\b/i) {
@@ -790,7 +793,7 @@ sub determine_urgency ($) {
 	 if (defined $tz) {
 	    $t -= 10800 if $tz eq 'PT';
 	    $t -=  7200 if $tz eq 'MT';
-	    $t -=  7200 if $tz eq 'MT';
+	    $t -=  7200 if $tz eq 'YT';	# FIXME this is wrong because YT has no DST
 	    $t -=  3600 if $tz eq 'CT';
 	    $t +=  3600 if $tz eq 'AT';	# FIXME this is wrong because AT has no DST
 	    $t +=  5400 if $tz eq 'NT';
@@ -798,6 +801,8 @@ sub determine_urgency ($) {
 	 no integer;
 	 $urgency = ($t - $t0)/86400;
       } elsif ($deadline =~ /^Ongoing$/) { # XXX sigh
+	 $urgency = "1 (Ongoing)";
+      } elsif ($deadline =~ /^(?:Open until filled|Until position is filled)$/) { # XXX sigh
 	 $urgency = "1 (Ongoing)";
       }
    last if defined $urgency && $urgency >= 0;
