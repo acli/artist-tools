@@ -479,16 +479,18 @@ sub decode_date ($;$) {
       if ($s =~ /^(?:Ongoing(?: application cycle)?|applications accepted on an ongoing basis\.)$/i) { # XXX sigh...
 	 $s = 'Ongoing';
       } elsif ($s !~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[-\+]\d\d:\d\d$/) {
-	 if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\([Aa]tlantic\)|\s+[Aa]tlantic\s+time\b/) {
+	 if ($s =~ /\s+A[S]?T\b|\.?\s*\(A[S]?T\)|\s+\(Atlantic\)|\s+Atlantic\s+time\b/) {
 	    ($s, $tz) = ("$`$'", 'AT');
-	 } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\([Ee]astern\)|\s+[Ee]astern\s+[Tt]ime\b/i) {
+	 } elsif ($s =~ /\s+E[DS]?T\b|\.?\s*\((?:E[DS]?T|HNE)\)|\s+\(Eastern\)|\s+Eastern\s+Time\b/i) {
 	    ($s, $tz) = ("$`$'", 'ET');
-	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\([Mm]ountain\)|\s+[Mm]ountain\s+[Tt]ime\b/i) {
+	 } elsif ($s =~ /\s+M[DS]?T\b|\.?\s*\(M[DS]?T\)|\s+\(Mountain\)|\s+Mountain\s+Time\b/i) {
 	    ($s, $tz) = ("$`$'", 'MT');
-	 } elsif ($s =~ /\s+N[DS]?T\b|\.?\s*\(N[DS]?T\)|\s+\([Nn]ewfoundland(?:(?:\s+Daylight)?\s+Time)?\)|\s+[Nn]ewfoundland\s+[Tt]ime\b/i) {
+	 } elsif ($s =~ /\s+N[DS]?T\b|\.?\s*\(N[DS]?T\)|\s+\(Newfoundland(?:(?:\s+Daylight)?\s+Time)?\)|\s+Newfoundland\s+Time\b/i) {
 	    ($s, $tz) = ("$`$'", 'NT');
-	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\([Pp]acific\)|\s+[Pp]acific\s+[Tt]ime\b/i) {
+	 } elsif ($s =~ /\s+P[DS]?T\b|\.?\s*\(P[DS]?T\)|\s+\(Pacific\)|\s+Pacific\s+Time\b/i) {
 	    ($s, $tz) = ("$`$'", 'PT');
+	 } elsif ($s =~ /\s+Y[S]?T\b|\.?\s*\(Y[S]?T\)|\s+\(Yukon\)|\s+Yukon\s+Time\b/i) {
+	    ($s, $tz) = ("$`$'", 'YT');
 	 }
 	 if ($s =~ /\(TBD\)/) {
 	    ($s, $tbd) = ("$`$'", 1);
