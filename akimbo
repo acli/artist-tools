@@ -526,7 +526,9 @@ sub decode_date ($;$) {
 	 } elsif ($s =~ /^(\d+)(?::(\d\d)(?::(\d\d))?)?$sp*(?:p\.m\.|PM)(?:,\s+|\s+(?:at|by|on)\s+)?/i) {
 	    ($s, $time) = ($', sprintf('%02d:%02d', ($1 % 12) + 12, $2));
 	    $time .= sprintf(':%02d', $3) if defined $3;
-	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+midnight\b/i || $s =~ /^[Mm]idnight\s+/i) {
+	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+(?:12\s+)?noon\b/i || $s =~ /^(?:12\s+)?[Nn]oon\s+/i) {
+	    ($s, $time) = ("$`$'", '12:00');
+	 } elsif ($s =~ /(?:\s+(?:@|at|by)|,)\s+(?:12\s+)?midnight\b/i || $s =~ /^(?:12\s+)?[Mm]idnight\s+/i) {
 	    ($s, $time) = ("$`$'", '00:00');
 	 }
 	 $s =~ s/^\.\s*//;
