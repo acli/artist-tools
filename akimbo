@@ -124,6 +124,7 @@ sub sanitize_title ($;$) {
       }
       $s = $det if $n == scalar @$deadlines;
    }
+   $s =~ s/ – Akimbo$//s;
    return $s;
 }
 
