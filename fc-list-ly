@@ -42,6 +42,11 @@ if ($dirs_p) {
    push @cmd, ('-dshow-available-fonts') unless $dirs_p;
 }
 
+# For some reason, Lilypond dumps its font list into stderr, not stdout
+# so we need to trap stderr before running Lilypond, but we also have to
+# save the real stderr so that if the exec fails we can show an error
+# message through the real stderr.
+
 my $stderr = dup(2);
 POSIX::dup2(1, 2);	# make stderr same as stdout
 exec { $cmd[0] } @cmd;
