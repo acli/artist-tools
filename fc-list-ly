@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+# vi: set sw=3 ai sm:
+
+# A small script to help debug Lilypond font problems
+
+use strict;
+use Getopt::Long;
+use POSIX;
+
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+use vars qw( $dirs_p $local_p );
+
+sub display_usage_and_exit ($st = 0) {
+   my $h = $st? *STDERR: *STDOUT;
+   print STDERR <<EOF;
+$0 [OPTION]...
+List Lilypond fonts.
+
+  -d, --dirs-only   list Lilypond font directories only
+  -l, --local       add /usr/local/share/fonts to Lilypond font path
+      --help        display this help and exit
+
+LilyPond's list of fonts is in a different format than fc-list.
+EOF
+   exit $st;
+}
+
+GetOptions(
+   'dirs-only|d' => \$dirs_p,
+   'local|l' => \$local_p,
+) || exit(1);
+
+my @cmd = ('lilypond');
+if ($local_p) {
+   push @cmd, ('-e', '(ly:font-config-add-directory "/usr/local/share/fonts")');
+}
+if ($dirs_p) {
+   push @cmd, ('-e', '(ly:font-config-display-fonts)');
+} else {
+   push @cmd, ('-dshow-available-fonts') unless $dirs_p;
+}
+
+my $stderr = dup(2);
+POSIX::dup2(1, 2);	# make stderr same as stdout
+exec { $cmd[0] } @cmd;
+
+dup2(2, $stderr);	# restore real stderr
+die "$cmd[0]: exec; $!\n";

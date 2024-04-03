@@ -1,4 +1,4 @@
-bin_targets=akimbo collate yalify
+bin_targets=akimbo collate fc-list-ly yalify
 
 install: $(addprefix $(HOME)/bin/,$(bin_targets))
 
