@@ -12,7 +12,8 @@ no warnings 'experimental::signatures';
 
 use vars qw( $dirs_p $local_p );
 
-sub display_usage_and_exit ($st = 0) {
+sub display_usage_and_exit ($) {
+   my($st) = @_;
    my $h = $st? *STDERR: *STDOUT;
    print STDERR <<EOF;
 $0 [OPTION]...
@@ -30,7 +31,8 @@ EOF
 GetOptions(
    'dirs-only|d' => \$dirs_p,
    'local|l' => \$local_p,
-) || exit(1);
+   'help' => \&display_usage_and_exit,
+) || display_usage_and_exit(1);
 
 my @cmd = ('lilypond');
 if ($local_p) {
