@@ -11,6 +11,8 @@ use feature 'signatures';
 no warnings 'experimental::signatures';
 
 use vars qw( $dirs_p $local_p );
+use vars qw( $verbose_p );
+use vars qw( $font );
 
 sub display_usage_and_exit ($) {
    my($st) = @_;
@@ -20,7 +22,9 @@ $0 [OPTION]...
 List Lilypond fonts.
 
   -d, --dirs-only   list Lilypond font directories only
+  -f, --font=FONT   show pathname found by Lilypond's copy of fontconfig
   -l, --local       add /usr/local/share/fonts to Lilypond font path
+  -v, --verbose     explain what is being done
       --help        display this help and exit
 
 LilyPond's list of fonts is in a different format than fc-list.
@@ -30,19 +34,27 @@ EOF
 
 GetOptions(
    'dirs-only|d' => \$dirs_p,
+   'font|f=s' => \$font,
    'local|l' => \$local_p,
+   'verbose|v' => \$verbose_p,
    'help' => \&display_usage_and_exit,
 ) || display_usage_and_exit(1);
 
 my @cmd = ('lilypond');
+push @cmd, '-s';
 if ($local_p) {
    push @cmd, ('-e', '(ly:font-config-add-directory "/usr/local/share/fonts")');
 }
+if (defined $font) {
+   push @cmd, ('-e', sprintf('(display (ly:font-config-get-font-file "%s")) (newline)', $font));
+}
 if ($dirs_p) {
    push @cmd, ('-e', '(ly:font-config-display-fonts)');
-} else {
-   push @cmd, ('-dshow-available-fonts') unless $dirs_p;
+} elsif (!$dirs_p && !defined $font) {
+   push @cmd, ('-dshow-available-fonts');
 }
+push @cmd, ('-e', '(exit)');
+printf STDERR "Running command: [%s]\n", join(' ', map { sprintf "(%s)", s/([\\])/\\\1/sgr } @cmd) if $verbose_p;
 
 # For some reason, Lilypond dumps its font list into stderr, not stdout
 # so we need to trap stderr before running Lilypond, but we also have to
