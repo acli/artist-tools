@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+# vi:set sw=2 ai sm:
+# This is a very simple script, essentially the same as aseqdump, but with note numbers converted to names
+# so that the output is actually useful for checking e.g. if transposition is on
+# (on the SE49 and possible others, there's a LED for transpositions by octaves but no LED for transpositions by semitones)
+use strict;
+use integer;
+use MIDI::ALSA(':CONSTS');
+use Time::HiRes;
+use Data::Dumper;
+
+# copied from chimer
+use vars qw( @midi_number_to_note %note_to_midi_number );
+@midi_number_to_note = (
+  'c0', 'c#0', 'd0', 'd#0', 'e0', 'f0', 'f#0', 'g0', 'g#0', 'a0', 'a#0', 'b0',
+  'c1', 'c#1', 'd1', 'd#1', 'e1', 'f1', 'f#1', 'g1', 'g#1', 'a1', 'a#1', 'b1',
+  'c2', 'c#2', 'd2', 'd#2', 'e2', 'f2', 'f#2', 'g2', 'g#2', 'a2', 'a#2', 'b2',
+  'c3', 'c#3', 'd3', 'd#3', 'e3', 'f3', 'f#3', 'g3', 'g#3', 'a3', 'a#3', 'b3',
+  'c4', 'c#4', 'd4', 'd#4', 'e4', 'f4', 'f#4', 'g4', 'g#4', 'a4', 'a#4', 'b4',
+  'c5', 'c#5', 'd5', 'd#5', 'e5', 'f5', 'f#5', 'g5', 'g#5', 'a5', 'a#5', 'b5',
+  'c6', 'c#6', 'd6', 'd#6', 'e6', 'f6', 'f#6', 'g6', 'g#6', 'a6', 'a#6', 'b6',
+  'c7', 'c#7', 'd7', 'd#7', 'e7', 'f7', 'f#7', 'g7', 'g#7', 'a7', 'a#7', 'b7',
+  'c8', 'c#8', 'd8', 'd#8', 'e8', 'f8', 'f#8', 'g8', 'g#8', 'a8', 'a#8', 'b8',
+  'c9', 'c#9', 'd9', 'd#9', 'e9', 'f9', 'f#9', 'g9', 'g#9', 'a9', 'a#9', 'b9',
+);
+%note_to_midi_number = map { $midi_number_to_note[$_] => $_ } 0..$#midi_number_to_note;
+
+# also copied from chimer
+use vars qw( %expressive_mark_to_midi_velocity );
+%expressive_mark_to_midi_velocity = (
+  'ppppp'	=> 1,
+  'pppp'	=> 8,	# this should be 8 according to Vandenneucker (2012)
+  'ppp'		=> 20,	# this should be close to 20 according to Yamaha (n.d.), exactly 20 according to Vandenneucker (2012)
+  'pp'		=> 31,
+  'p'		=> 42,
+  'mp'		=> 53,
+  'mf'		=> 64,
+  'f'		=> 80,
+  'ff'		=> 96,
+  'fff'		=> 112,	# this should be close to 110 according to Yamaha (n.d.), exactly 112 according to Vandenneucker (2012)
+  'ffff'	=> 119,	# this should be 127 according to Vandenneucker (2012)
+  'fffff'	=> 127,
+);
+
+# invert the above array so we can actually use it
+use vars qw( @midi_velocity_to_expressive_mark );
+if (%expressive_mark_to_midi_velocity) {
+  my $it;
+  for my $key (sort { $a =~ /^[mf]/ && substr($a, 0, 1) eq substr($b, 0, 1)? length $b <=> length $a: $b cmp $a } keys %expressive_mark_to_midi_velocity) {
+    $midi_velocity_to_expressive_mark[$expressive_mark_to_midi_velocity{$key}] = $key;
+  }
+  for (my $i = 1; $i < 128; $i += 1) {
+    if (defined $midi_velocity_to_expressive_mark[$i]) {
+      $it = $midi_velocity_to_expressive_mark[$i];
+    } else {
+      $midi_velocity_to_expressive_mark[$i] = $it;
+    }
+  }
+  $midi_velocity_to_expressive_mark[0] = 'off';
+}
+
+sub make_key ($;$) {
+  my($channel, $key) = @_;
+  ($channel, $key) = @$channel if ref $channel && !defined $key;
+  return sprintf('%d,%d', $channel, $key);
+}
+
+MIDI::ALSA::client( 'Velocity curve tweak', 1, 1, 0 );
+my $input;
+my %notes;
+MIDI::ALSA::connectfrom(0, 'SE49:0');
+for (;;) {
+  my @data = MIDI::ALSA::input;
+  my($type, $flags, $tag, $queue, $time, $source, $destination, $data) = @data;
+  if ($type == SND_SEQ_EVENT_NOTEOFF || ($type == SND_SEQ_EVENT_NOTEON && $data->[2] == 0)) {
+    my $key = make_key($data);
+    printf "Release channel %d note %s (%g seconds)\n",
+	$data->[0],
+	$midi_number_to_note[$data->[1]],
+	Time::HiRes::time - $notes{$key};
+
+    delete $notes{$key};
+  } elsif ($type == SND_SEQ_EVENT_NOTEON) {
+    my $key = make_key($data);
+    printf "Attack: channel %d note %s velocity %d (%s)\n",
+	$data->[0],
+	$midi_number_to_note[$data->[1]],
+	$data->[2],
+	$midi_velocity_to_expressive_mark[$data->[2]];
+
+    $notes{$key} = Time::HiRes::time;
+  } else {
+    print Dumper \@data;
+  }
+last if $type == SND_SEQ_EVENT_PORT_UNSUBSCRIBED;
+}
+

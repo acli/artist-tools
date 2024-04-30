@@ -1,4 +1,4 @@
-bin_targets=akimbo collate fc-list-ly yalify
+bin_targets=akimbo check_midi_keyboard collate fc-list-ly yalify
 
 install: $(addprefix $(HOME)/bin/,$(bin_targets))
 
