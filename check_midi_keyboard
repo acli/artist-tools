@@ -10,6 +10,10 @@ use Getopt::Long;
 use Time::HiRes;
 use Data::Dumper;
 
+use vars qw( $appName $keyboard );
+$appName = 'check_midi_keyboard';
+$keyboard = '36:0';
+
 # copied from chimer
 use vars qw( @midi_number_to_note %note_to_midi_number );
 @midi_number_to_note = (
@@ -66,12 +70,28 @@ sub make_key ($;$) {
   return sprintf('%d,%d', $channel, $key);
 }
 
-use vars qw( $appName $keyboard );
-$appName = 'check_midi_keyboard';
-$keyboard = '36:0';
+sub display_help_and_exit (;$) {
+  my($st) = @_;
+  my $h = $st? *STDERR: *STDOUT;
+  print $h <<EOF;
+Usage: $appName [OPTION]...
+Dump MIDI events from a MIDI controller.
+
+  -p, --port=NAME       use NAME instead of 36:0
+      --help            display this help and exit
+
+Some MIDI controllers do not provide a LED when transpose is on.
+This is a slightly more readable way to check this than aseqdump.
+
+Only noteon and noteoff are formatted readably; all other events
+are raw data dumps. (Use aseqdump to check other events.)
+EOF
+  exit $st;
+}
 
 GetOptions(
   'port|p' => \$keyboard,
+  'help' => \&display_help_and_exit,
 ) || exit(1);
 
 MIDI::ALSA::client($appName, 1, 1, 0);
