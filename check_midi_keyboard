@@ -6,6 +6,7 @@
 use strict;
 use integer;
 use MIDI::ALSA(':CONSTS');
+use Getopt::Long;
 use Time::HiRes;
 use Data::Dumper;
 
@@ -65,10 +66,18 @@ sub make_key ($;$) {
   return sprintf('%d,%d', $channel, $key);
 }
 
-MIDI::ALSA::client( 'Velocity curve tweak', 1, 1, 0 );
+use vars qw( $appName $keyboard );
+$appName = 'check_midi_keyboard';
+$keyboard = '36:0';
+
+GetOptions(
+  'port|p' => \$keyboard,
+) || exit(1);
+
+MIDI::ALSA::client($appName, 1, 1, 0);
 my $input;
 my %notes;
-MIDI::ALSA::connectfrom(0, 'SE49:0');
+MIDI::ALSA::connectfrom(0, $keyboard) or die "$appName: $keyboard: Failed to connect, please specify with --port\n";
 for (;;) {
   my @data = MIDI::ALSA::input;
   my($type, $flags, $tag, $queue, $time, $source, $destination, $data) = @data;
