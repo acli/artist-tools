@@ -1,0 +1,133 @@
+#!/usr/bin/perl
+# vi:set sw=2 ai sm:
+# TEST program to shuffle MIDI messages between two Linux boxes
+use strict;
+use integer;
+use JSON;
+use MIDI::ALSA(':CONSTS');
+use IO::Socket::INET;
+use Getopt::Long;
+use Time::HiRes;
+use Data::Dumper;
+
+use vars qw( $appName $keyboard );
+$appName = 'rmidid';
+$keyboard = '36:0';
+
+use vars qw( $from $to );
+use vars qw( $verbose_p );
+use vars qw( $get_data $send_data );
+use vars qw( $port );
+use vars qw( $remote_input_p );
+$port = 19798;
+$remote_input_p = 0;
+
+sub make_key ($;$) {
+  my($channel, $key) = @_;
+  ($channel, $key) = @$channel if ref $channel && !defined $key;
+  return sprintf('%d,%d', $channel, $key);
+}
+
+sub display_help_and_exit (;$) {
+  my($st) = @_;
+  my $h = $st? *STDERR: *STDOUT;
+  print $h <<EOF;
+Usage: $appName [OPTION]...
+Send and receive MIDI events between ALSA or UDP peers.
+
+  -f, --from=NAME       get MIDI input from ALSA port or network address NAME
+  -t, --to=NAME         send MIDI output to ALSA port or network address NAME
+  -v, --verbose         display debug messages
+      --help            display this help and exit
+
+This is just a test program to make sure communication is possible.
+EOF
+  exit $st;
+}
+
+GetOptions(
+  'from|f|i=s' => \$from,
+  'to|t|o=s' => \$to,
+  'verbose|v+' => \$verbose_p,
+  'help' => \&display_help_and_exit,
+) || exit(1);
+
+MIDI::ALSA::client($appName, 1, 1, 0);
+
+if ($from =~ /^\d+:\d+$/) {
+  MIDI::ALSA::connectfrom(0, $from) or die "$appName: $from: Failed to connect\n";
+  $get_data = sub {
+	my $s = [ MIDI::ALSA::input ];
+	print STDERR "recv " . Dumper $s if $verbose_p > 1;
+	$s;
+      };
+  print STDERR "connected via ALSA to input $from\n" if $verbose_p;
+
+} elsif ($from =~ /^(\d+\.\d+\.\d+\.\d+)(?::(\d+))?$/) {
+  my $socket = new IO::Socket::INET(
+	LocalAddr => '0.0.0.0',
+	LocalPort => $port,
+	Proto => 'udp'
+      ) or die "$appName: $from: $!\n";
+
+  $get_data = sub {
+	my $s;
+	my $st = $socket->recv($s, 1024);
+	print STDERR "recv " . Dumper $s if $verbose_p > 1;
+	print STDERR "recv returned " . Dumper $st if $verbose_p > 2;
+	if (defined $s) {
+	  $s = decode_json $s;
+	}
+	$s;
+      };
+
+  $remote_input_p = 1;
+  print STDERR "connected via UDP to input $from\n" if $verbose_p;
+
+} else {
+  die "$appName: $from: Not numeric ALSA client:port or IPv4 address:port\n";
+}
+if ($to =~ /^(\d+):(\d+)$/) {
+  my($to_client, $to_port) = ($1, $2);
+  my $from_client = MIDI::ALSA::id;
+  MIDI::ALSA::connectto(0, $to) or die "$appName: $to: Failed to connect\n";
+  $send_data = sub {
+	my($s) = @_;
+	my($type, $flags, $tag, $queue, $time, $source, $destination, $data) = @$s;
+	if ($remote_input_p) {
+	  $source = [$from_client, 0];
+	  $destination = [$to_client, $to_port];
+	}
+	print STDERR "send " . Dumper [$type, $flags, $tag, $queue, $time, $source, $destination, $data] if $verbose_p > 1;
+	MIDI::ALSA::output($type, $flags, $tag, $queue, $time, $source, $destination, $data);
+      };
+
+  print STDERR "connected via ALSA to output $to\n" if $verbose_p;
+
+} elsif ($to =~ /^(\d+\.\d+\.\d+\.\d+)(?::(\d+))?$/) {
+  my $socket = new IO::Socket::INET(
+	LocalPort => $port,
+	PeerAddr => $to,
+	Proto => 'udp'
+      ) or die "$appName: $to: $!\n";
+
+  $send_data = sub {
+	my($s) = @_;
+	$s = encode_json $s;
+	my $st = $socket->send($s);
+	print STDERR "send " . Dumper $s if $verbose_p > 1;
+	print STDERR "send returned " . Dumper $st if $verbose_p > 2;
+	$st;
+      };
+
+  print STDERR "connected via UDP to output $to\n" if $verbose_p;
+
+} else {
+  die "$appName: $from: Not numeric ALSA client:port or IPv4 address:port\n";
+}
+
+for (;;) {
+  my $s = &$get_data;
+  &$send_data($s);
+}
+
