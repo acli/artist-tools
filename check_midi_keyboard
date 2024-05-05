@@ -64,6 +64,32 @@ if (%expressive_mark_to_midi_velocity) {
   $midi_velocity_to_expressive_mark[0] = 'off';
 }
 
+# labels based on Roland A49 manual
+use vars qw( %cc_label );
+%cc_label = (
+  7 => 'volume',		# D-beam (Vol engaged) on Roland A49
+  11 => 'expression',
+  16 => undef,			# C1 on Roland A49 (SN mode)
+  17 => undef,			# C2 on Roland A49 (SN mode 0)
+  18 => undef,			# D-beam (Assign engaged) on Roland A49
+  19 => undef,			# C2 on Roland A49 (SN mode 1)
+  64 => 'hold',			# sustain pedal
+  65 => 'portamento',
+  66 => 'sostenuto',
+  67 => 'soft',
+  71 => 'resonance',		# C2 on Roland A49 (MVC mode)
+  72 => 'release time',
+  73 => 'attack time',
+  74 => 'cutoff',		# C2 on Roland A49 (MVC mode)
+  75 => 'delay time',
+  76 => 'vibrato rate',
+  77 => 'vibrato depth',
+  78 => 'vibrato delay',
+  80 => undef,			# S1 on Roland A49
+  81 => undef,			# S2 on Roland A49
+  74 => 'portamento control',
+);
+
 sub make_key ($;$) {
   my($channel, $key) = @_;
   ($channel, $key) = @$channel if ref $channel && !defined $key;
@@ -90,7 +116,7 @@ EOF
 }
 
 GetOptions(
-  'port|p' => \$keyboard,
+  'port|p=s' => \$keyboard,
   'help' => \&display_help_and_exit,
 ) || exit(1);
 
@@ -110,7 +136,7 @@ for (;;) {
 	Time::HiRes::time - $notes{$key};
 
     delete $notes{$key};
-  } elsif ($type == SND_SEQ_EVENT_NOTEON) {
+  } elsif ($type == SND_SEQ_EVENT_NOTEON) {		# 6
     my $key = make_key($data);
     printf "Attack: channel %d note %s velocity %d (%s)\n",
 	$data->[0],
@@ -119,6 +145,11 @@ for (;;) {
 	$midi_velocity_to_expressive_mark[$data->[2]];
 
     $notes{$key} = Time::HiRes::time;
+  } elsif ($type == SND_SEQ_EVENT_CONTROLLER) {		# 10
+    my($cc, $val) = ($data->[4], $data->[5]);
+    my $id = sprintf 'CC#%d', $cc;
+    my $label = $cc_label{$cc};
+    printf "%s at %d\n", (defined $label? sprintf('%s (%s)', $id, $label): $id), $val;
   } else {
     print Dumper \@data;
   }
