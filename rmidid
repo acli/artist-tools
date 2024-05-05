@@ -45,6 +45,16 @@ EOF
   exit $st;
 }
 
+sub log_something ($$) {
+  my($s, $flag) = @_;
+  no integer;
+  $s =~ s/\n+$//s;
+  printf "%10.4f%s\t%s\n", Time::HiRes::time, $flag, $s;
+}
+sub log_input ($)	{ log_something($_[0], '<') }
+sub log_output ($)	{ log_something($_[0], '>') }
+sub log_debug ($)	{ log_something($_[0], '#') }
+
 GetOptions(
   'from|f|i=s' => \$from,
   'to|t|o=s' => \$to,
@@ -58,10 +68,10 @@ if ($from =~ /^\d+:\d+$/) {
   MIDI::ALSA::connectfrom(0, $from) or die "$appName: $from: Failed to connect\n";
   $get_data = sub {
 	my $s = [ MIDI::ALSA::input ];
-	print STDERR "recv " . Dumper $s if $verbose_p > 1;
+	log_input Dumper $s if $verbose_p > 1;
 	$s;
       };
-  print STDERR "connected via ALSA to input $from\n" if $verbose_p;
+  log_debug "connected via ALSA to input $from\n" if $verbose_p;
 
 } elsif ($from =~ /^(\d+\.\d+\.\d+\.\d+)(?::(\d+))?$/) {
   my $socket = new IO::Socket::INET(
@@ -73,8 +83,8 @@ if ($from =~ /^\d+:\d+$/) {
   $get_data = sub {
 	my $s;
 	my $st = $socket->recv($s, 1024);
-	print STDERR "recv " . Dumper $s if $verbose_p > 1;
-	print STDERR "recv returned " . Dumper $st if $verbose_p > 2;
+	log_input Dumper $s if $verbose_p > 1;
+	log_debug "recv returned " . Dumper $st if $verbose_p > 2;
 	if (defined $s) {
 	  $s = decode_json $s;
 	}
@@ -82,7 +92,7 @@ if ($from =~ /^\d+:\d+$/) {
       };
 
   $remote_input_p = 1;
-  print STDERR "connected via UDP to input $from\n" if $verbose_p;
+  log_debug "connected via UDP to input $from\n" if $verbose_p;
 
 } else {
   die "$appName: $from: Not numeric ALSA client:port or IPv4 address:port\n";
@@ -98,11 +108,11 @@ if ($to =~ /^(\d+):(\d+)$/) {
 	  $source = [$from_client, 0];
 	  $destination = [$to_client, $to_port];
 	}
-	print STDERR "send " . Dumper [$type, $flags, $tag, $queue, $time, $source, $destination, $data] if $verbose_p > 1;
+	log_output Dumper [$type, $flags, $tag, $queue, $time, $source, $destination, $data] if $verbose_p > 1;
 	MIDI::ALSA::output($type, $flags, $tag, $queue, $time, $source, $destination, $data);
       };
 
-  print STDERR "connected via ALSA to output $to\n" if $verbose_p;
+  log_debug "connected via ALSA to output $to\n" if $verbose_p;
 
 } elsif ($to =~ /^(\d+\.\d+\.\d+\.\d+)(?::(\d+))?$/) {
   my $socket = new IO::Socket::INET(
@@ -115,12 +125,12 @@ if ($to =~ /^(\d+):(\d+)$/) {
 	my($s) = @_;
 	$s = encode_json $s;
 	my $st = $socket->send($s);
-	print STDERR "send " . Dumper $s if $verbose_p > 1;
-	print STDERR "send returned " . Dumper $st if $verbose_p > 2;
+	log_output Dumper $s if $verbose_p > 1;
+	log_debug "send returned " . Dumper $st if $verbose_p > 2;
 	$st;
       };
 
-  print STDERR "connected via UDP to output $to\n" if $verbose_p;
+  log_debug "connected via UDP to output $to\n" if $verbose_p;
 
 } else {
   die "$appName: $from: Not numeric ALSA client:port or IPv4 address:port\n";
