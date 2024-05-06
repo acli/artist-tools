@@ -88,7 +88,11 @@ if ($from =~ /^\d+:\d+$/) {
 	my $s;
 	my $st = $socket->recv($s, 1024);
 	log_input Dumper $s if $verbose_p > 1;
-	log_debug "recv returned " . Dumper $st if $verbose_p > 2;
+	if (defined $st) {
+	  log_debug "recv returned $st" if $verbose_p > 2;
+	} else {
+	  log_debug "recv failed: $!";
+	}
 	if (defined $s) {
 	  $s = decode_json $s;
 	}
@@ -130,7 +134,11 @@ if ($to =~ /^(\d+):(\d+)$/) {
 	$s = encode_json $s;
 	my $st = $socket->send($s);
 	log_output Dumper $s if $verbose_p > 1;
-	log_debug "send returned " . Dumper $st if $verbose_p > 2;
+	if (defined $st) {
+	  log_debug "send returned $st" if $verbose_p > 2;
+	} else {
+	  log_debug "send failed: $!";
+	}
 	$st;
       };
 
