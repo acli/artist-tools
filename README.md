@@ -27,12 +27,16 @@ Requires [Text::Roman](https://metacpan.org/pod/Text::Roman).
 
 ### rmidid
 
-This is a very small script to shuffle MIDI messages across a LAN using non-standard (JSON-based) UDP packets.
+This is a very small script
+to shuffle MIDI messages between two Linux boxes across a LAN using non-standard (JSON-based) UDP packets.
 This could be useful if compatibility and security aren’t issues for you.
 
 I wrote this as a proof-of-concept
 because I could get neither [rtpmidid](https://github.com/davidmoreno/rtpmidid)
 nor [RaveloxMIDI](https://github.com/ravelox/pimidi) to work.
+
+On some 32-bit Raspberry Pi’s JSON::XS might crash the kernel;
+JSON::PP works (I use it) but obviously this will introduce latency.
 
 Requires [MIDI::ALSA](https://metacpan.org/pod/MIDI::ALSA),
 and on 32-bit Raspberry Pi,
