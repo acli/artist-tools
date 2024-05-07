@@ -10,9 +10,8 @@ use Getopt::Long;
 use Time::HiRes;
 use Data::Dumper;
 
-use vars qw( $appName $keyboard );
+use vars qw( $appName );
 $appName = 'rmidid';
-$keyboard = '36:0';
 
 use vars qw( $from $to );
 use vars qw( $verbose_p );
@@ -21,12 +20,6 @@ use vars qw( $port );
 use vars qw( $remote_input_p );
 $port = 19798;
 $remote_input_p = 0;
-
-sub make_key ($;$) {
-  my($channel, $key) = @_;
-  ($channel, $key) = @$channel if ref $channel && !defined $key;
-  return sprintf('%d,%d', $channel, $key);
-}
 
 sub display_help_and_exit (;$) {
   my($st) = @_;
