@@ -13,6 +13,8 @@ no warnings 'experimental::signatures';
 use vars qw( $dirs_p $local_p );
 use vars qw( $verbose_p );
 use vars qw( $font );
+use vars qw( $appName );
+$appName = $1 if $0 =~ /([^\/]+)$/;
 
 sub display_usage_and_exit ($) {
    my($st) = @_;
@@ -41,29 +43,46 @@ GetOptions(
 ) || display_usage_and_exit(1);
 
 my @cmd = ('lilypond');
-push @cmd, '-s';
+my $lisp;
 if ($local_p) {
-   push @cmd, ('-e', '(ly:font-config-add-directory "/usr/local/share/fonts")');
+   $lisp .= '(ly:font-config-add-directory "/usr/local/share/fonts")';
 }
 if (defined $font) {
-   push @cmd, ('-e', sprintf('(display (ly:font-config-get-font-file "%s")) (newline)', $font));
+   $lisp .= sprintf('(display (ly:font-config-get-font-file "%s")) (newline)', $font);
+} else {
+   $lisp .= '(ly:font-config-display-fonts)';
 }
-if ($dirs_p) {
-   push @cmd, ('-e', '(ly:font-config-display-fonts)');
-} elsif (!$dirs_p && !defined $font) {
-   push @cmd, ('-dshow-available-fonts');
-}
-push @cmd, ('-e', '(exit)');
+push @cmd, ('-e', $lisp . '(exit)');
 printf STDERR "Running command: [%s]\n", join(' ', map { sprintf "(%s)", s/([\\])/\\\1/sgr } @cmd) if $verbose_p;
 
 # For some reason, Lilypond dumps its font list into stderr, not stdout
 # so we need to trap stderr before running Lilypond, but we also have to
 # save the real stderr so that if the exec fails we can show an error
 # message through the real stderr.
+# It also displays a banner, which -s used to be able to suppress,
+# but in 2.24.3 it suppresses all output. We have to manually inspect
+# the output and throw away the banner
 
-my $stderr = dup(2);
-POSIX::dup2(1, 2);	# make stderr same as stdout
-exec { $cmd[0] } @cmd;
+my $h = open(INPUT, '-|');
+if (!defined $h) {
+   die "$appName: $cmd[0]: fork: $!\n";
+} elsif (!$h) {
+   my $stderr = dup(2);
+   POSIX::dup2(1, 2);	# make stderr same as stdout
+   exec { $cmd[0] } @cmd;
 
-dup2(2, $stderr);	# restore real stderr
-die "$cmd[0]: exec; $!\n";
+   dup2(2, $stderr);	# restore real stderr
+   die "$cmd[0]: exec; $!\n";
+} else {
+   for (;;) {
+      my $s = scalar <INPUT>;
+   last unless defined $s;
+      if ($s =~ /^GNU LilyPond \d.*running Guile/s) {
+	 ;	# throw it away
+      } elsif ($dirs_p && $s !~ /^Font dir:/s) {
+	 ;
+      } else {
+	 print $s;
+      }
+   }
+}
