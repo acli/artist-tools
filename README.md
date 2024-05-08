@@ -8,7 +8,7 @@ More details in [doc/akimbo.md](doc/akimbo.md).
 
 ### check_midi_keyboard
 
-Some MIDI controllers (for example the Nektar SE49) does not have a LED or a display for transposition by semitones.
+Some MIDI controllers (for example the Nektar SE49) do not have a LED or a display for transposition by semitones.
 If you’ve use transposed there’s no way (unless you have absolute pitch) to know how to get back.
 This small script shows you what note you’ve pressed so you can cancel any transpositions.
 
