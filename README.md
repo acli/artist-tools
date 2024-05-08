@@ -8,11 +8,9 @@ More details in [doc/akimbo.md](doc/akimbo.md).
 
 ### check_midi_keyboard
 
-Some MIDI controllers (for example the Nektar SE49) do not show you if you’ve transposed by semitones.
-So once you’ve transposed by semitones there’s no way (unless you have absolute pitch) to know how to cancel it.
-This small script shows you what note you’ve pressed so you can cancel any transpositions.
-
 This is basically a cruder version of aseqdump, but shows you note names instead of note numbers.
+This was mainly used for figuring out how to cancel any transpositions you’ve set on your MIDI controller
+(some MIDI controllers, for example the Nektar SE49, do not show if you’ve transposed by semitones).
 
 Requires [MIDI::ALSA](https://metacpan.org/pod/MIDI::ALSA)
 
