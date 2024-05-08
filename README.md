@@ -25,6 +25,13 @@ so you can check your work.
 
 Requires [Text::Roman](https://metacpan.org/pod/Text::Roman).
 
+### fc-list-ly
+
+Lists all fonts available to LilyPond.
+Basically it just evaluates ly:font-config-display-fonts
+while making sure output is sent to standard output instead of standard error
+so the result can be used in a pipe.
+
 ### rmidid
 
 This is a very small script
