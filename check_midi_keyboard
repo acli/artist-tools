@@ -130,17 +130,21 @@ for (;;) {
   if ($type == SND_SEQ_EVENT_NOTEOFF || ($type == SND_SEQ_EVENT_NOTEON && $data->[2] == 0)) {
     my $key = make_key($data);
     no integer;
-    printf "Release channel %d note %s (%g seconds)\n",
+    printf "Release channel %d note %d (%d = %#02x) (%g seconds)\n",
 	$data->[0],
 	$midi_number_to_note[$data->[1]],
+	$data->[1],
+	$data->[1],
 	Time::HiRes::time - $notes{$key};
 
     delete $notes{$key};
   } elsif ($type == SND_SEQ_EVENT_NOTEON) {		# 6
     my $key = make_key($data);
-    printf "Attack: channel %d note %s velocity %d (%s)\n",
+    printf "Attack: channel %d note %s (%d = %#02x) velocity %d (%s)\n",
 	$data->[0],
 	$midi_number_to_note[$data->[1]],
+	$data->[1],
+	$data->[1],
 	$data->[2],
 	$midi_velocity_to_expressive_mark[$data->[2]];
 
