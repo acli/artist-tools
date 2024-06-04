@@ -68,6 +68,7 @@ if (%expressive_mark_to_midi_velocity) {
 use vars qw( %cc_label );
 %cc_label = (
   7 => 'volume',		# D-beam (Vol engaged) on Roland A49
+  11 => 'pan',
   11 => 'expression',
   16 => undef,			# C1 on Roland A49 (SN mode)
   17 => undef,			# C2 on Roland A49 (SN mode 0)
@@ -130,7 +131,7 @@ for (;;) {
   if ($type == SND_SEQ_EVENT_NOTEOFF || ($type == SND_SEQ_EVENT_NOTEON && $data->[2] == 0)) {
     my $key = make_key($data);
     no integer;
-    printf "Release channel %d note %d (%d = %#02x) (%g seconds)\n",
+    printf "Release channel %d note %s (%d = %#02x) (%g seconds)\n",
 	$data->[0],
 	$midi_number_to_note[$data->[1]],
 	$data->[1],
@@ -150,10 +151,13 @@ for (;;) {
 
     $notes{$key} = Time::HiRes::time;
   } elsif ($type == SND_SEQ_EVENT_CONTROLLER) {		# 10
-    my($cc, $val) = ($data->[4], $data->[5]);
+    my($channel, $cc, $val) = ($data->[0], $data->[4], $data->[5]);
     my $id = sprintf 'CC#%d', $cc;
     my $label = $cc_label{$cc};
-    printf "%s at %d\n", (defined $label? sprintf('%s (%s)', $id, $label): $id), $val;
+    printf "Channel %d %s at %d\n", $channel, (defined $label? sprintf('%s (%s)', $id, $label): $id), $val;
+  } elsif ($type == SND_SEQ_EVENT_PGMCHANGE) {
+    my($channel, $val) = ($data->[0], $data->[5]);
+    printf "Channel %d change instrument to %d\n", $channel, $val;
   } else {
     print Dumper \@data;
   }
